@@ -44,19 +44,7 @@ export function ControlPanel({
             >
               MIN
             </button>
-            <div className="slider-wrapper">
-              <input
-                type="range"
-                min="0.1"
-                max="10"
-                step="0.1"
-                value={sliderValue}
-                onChange={(e) => handleSliderChange(e.target.value)}
-                className="slider"
-                disabled={disabled}
-              />
-              <div className="slider-value">{sliderValue.toFixed(1)}</div>
-            </div>
+            <div className="slider-value">{sliderValue.toFixed(1)}</div>
             <button
               className="slider-label"
               onClick={() => !disabled && handleSliderChange(10)}
@@ -107,22 +95,6 @@ export function ControlPanel({
                 ? `Current Win: ${potentialWin} 💲`
                 : "Chance of being shot down"}
             </span>
-          </div>
-          <div className="chance-bar">
-            <div
-              className={`chance-fill ${isPlaying ? "playing" : ""}`}
-              style={{
-                width: isPlaying
-                  ? "100%"
-                  : difficulty === "Easy"
-                    ? "20%"
-                    : difficulty === "Medium"
-                      ? "40%"
-                      : difficulty === "Hard"
-                        ? "60%"
-                        : "80%",
-              }}
-            ></div>
           </div>
         </div>
 

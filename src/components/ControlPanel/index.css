@@ -31,14 +31,7 @@
   padding: 12px 20px;
   border-radius: 12px;
   border: 2px solid #4a4a4a;
-}
-
-.slider-wrapper {
-  flex: 1;
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  justify-content: space-between;
 }
 
 .slider {
@@ -189,29 +182,9 @@
   gap: 12px;
 }
 
-.chance-bar {
-  height: 40px;
-  background: #3a3a3a;
-  border-radius: 10px;
-  overflow: hidden;
-  position: relative;
-  border: 2px solid #4a4a4a;
-}
-
-.chance-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
-  transition: width 0.3s ease;
-  border-radius: 8px;
-}
-
-.chance-fill.playing {
-  background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
-  animation: progressPulse 1s ease-in-out infinite;
-}
-
 @keyframes progressPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
