@@ -4,11 +4,14 @@
   background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
   position: relative;
   overflow-x: auto;
-  overflow-y: auto;
+  overflow-y: hidden;
   cursor: grab;
   /* Hide scrollbar for Chrome, Safari and Opera */
   -ms-overflow-style: none; /* IE and Edge */
   scrollbar-width: none; /* Firefox */
+  /* Performance optimizations */
+  will-change: scroll-position;
+  -webkit-overflow-scrolling: touch;
 }
 
 .canvas-game-container::-webkit-scrollbar {
@@ -24,6 +27,25 @@
   width: auto;
   user-select: none;
   pointer-events: none;
+  /* Hardware acceleration and rendering optimizations */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  contain: layout style paint;
+}
+
+.game-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  z-index: 10;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
 }
 
 .game-notification {
@@ -65,10 +87,10 @@
   }
 }
 
-/* Responsive canvas */
+/* Mobile adjustments */
 @media (max-width: 768px) {
-  .game-canvas {
-    width: 100%;
-    height: auto;
+  .game-loading {
+    font-size: 16px;
+    padding: 16px;
   }
 }

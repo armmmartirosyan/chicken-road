@@ -1,0 +1,155 @@
+import { useEffect, useRef, useState } from "react";
+import { Game } from "../game/core/Game.js";
+import { EntityManager } from "../game/managers/EntityManager.js";
+import { AssetManager } from "../game/managers/AssetManager.js";
+import { InputSystem } from "../game/systems/InputSystem.js";
+import { Chicken } from "../game/entities/Chicken.js";
+import { Road } from "../game/entities/Road.js";
+import { Scenery } from "../game/entities/Scenery.js";
+
+/**
+ * useGame - Custom hook to manage game instance lifecycle
+ * Initializes game, loads assets, creates entities, and manages game state
+ */
+export function useGame(canvasRef, config) {
+  const gameRef = useRef(null);
+  const entityManagerRef = useRef(null);
+  const assetManagerRef = useRef(null);
+  const inputSystemRef = useRef(null);
+  const chickenRef = useRef(null);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [gameState, setGameState] = useState({
+    state: "idle",
+    fps: 0,
+    entityCount: 0,
+  });
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    let isInitialized = false;
+
+    const initializeGame = async () => {
+      try {
+        // Create managers
+        const entityManager = new EntityManager();
+        const assetManager = new AssetManager();
+        const inputSystem = new InputSystem(canvas);
+
+        entityManagerRef.current = entityManager;
+        assetManagerRef.current = assetManager;
+        inputSystemRef.current = inputSystem;
+
+        // Create game instance
+        const game = new Game(canvas, config);
+        gameRef.current = game;
+
+        // Initialize game with managers
+        await game.initialize(entityManager, assetManager, inputSystem);
+
+        // Load assets
+        await assetManager.loadImages([
+          { key: "start", url: "/start.png" },
+          { key: "finish", url: "/finish.png" },
+          { key: "chicken", url: "/assets/chicken.png" },
+        ]);
+
+        // Get loaded images
+        const startImage = assetManager.getImage("start");
+        const finishImage = assetManager.getImage("finish");
+        const chickenImage = assetManager.getImage("chicken");
+
+        // Calculate layout
+        const startWidth = startImage.width;
+        const startHeight = startImage.height;
+        const finishWidth = finishImage.width;
+        const finishHeight = finishImage.height;
+        const roadHeight = startHeight;
+        const roadWidth = config.laneWidth * config.laneCount;
+
+        // Set canvas size
+        canvas.width = startWidth + roadWidth + finishWidth / 2;
+        canvas.height = Math.max(roadHeight, finishHeight);
+
+        // Update game renderer with new size
+        game.resize(canvas.width, canvas.height);
+
+        // Create entities
+        // Start scenery
+        const startScenery = new Scenery(0, 0, "start", startImage);
+        entityManager.addEntity(startScenery);
+
+        // Road
+        const road = new Road(startWidth, 0, {
+          laneWidth: config.laneWidth,
+          laneCount: config.laneCount,
+          roadHeight: roadHeight,
+          roadColor: config.roadColor,
+          lineColor: config.lineColor,
+          roadLineWidth: config.roadLineWidth,
+          dashPattern: config.dashPattern,
+        });
+        entityManager.addEntity(road);
+
+        // Finish scenery (only half visible)
+        const finishScenery = new Scenery(
+          startWidth + roadWidth,
+          0,
+          "finish",
+          finishImage,
+        );
+        entityManager.addEntity(finishScenery);
+
+        // Chicken
+        const chickenX = startWidth - 80;
+        const chickenY = roadHeight * 0.7;
+        const chicken = new Chicken(chickenX, chickenY, {
+          chickenSize: config.chickenSize,
+          chickenScale: config.chickenScale,
+        });
+        chicken.setImage(chickenImage);
+        chicken.setDirection(true); // Facing right
+        entityManager.addEntity(chicken);
+        chickenRef.current = chicken;
+
+        // Subscribe to game events
+        game.on("stateChange", (data) => {
+          setGameState((prev) => ({ ...prev, ...data }));
+        });
+
+        game.on("fpsUpdate", (data) => {
+          setGameState((prev) => ({ ...prev, fps: data.fps }));
+        });
+
+        // Start game loop
+        game.start();
+
+        isInitialized = true;
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Failed to initialize game:", error);
+        setIsLoading(false);
+      }
+    };
+
+    initializeGame();
+
+    // Cleanup
+    return () => {
+      if (isInitialized && gameRef.current) {
+        gameRef.current.destroy();
+      }
+    };
+  }, [canvasRef, config]);
+
+  return {
+    gameRef,
+    entityManagerRef,
+    assetManagerRef,
+    chickenRef,
+    isLoading,
+    gameState,
+  };
+}

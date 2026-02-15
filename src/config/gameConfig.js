@@ -1,74 +1,64 @@
-// Game configuration and asset paths
+/**
+ * Game Configuration
+ * Central configuration for all game parameters and settings
+ */
+
+/**
+ * Core game configuration
+ */
 export const GAME_CONFIG = {
-  // Canvas dimensions
-  width: 800,
-  height: 600,
-  
-  // Game mechanics
-  laneCount: 6,
-  laneHeight: 80,
-  scrollSpeed: 2,
-  carSpeed: 3,
-  jumpDuration: 300, // ms
-  jumpHeight: 80,
-  
-  // Chicken properties
-  chicken: {
-    width: 60,
-    height: 60,
-    startX: 370,
-    startY: 480,
-    idleFrames: 8,
-    jumpFrames: 6,
-    frameRate: 100, // ms per frame
-  },
-  
-  // Car properties
-  car: {
-    width: 80,
-    height: 50,
-    minSpeed: 2,
-    maxSpeed: 5,
-    spawnInterval: 2000, // ms
-  },
-  
-  // Coin properties
-  coin: {
-    width: 40,
-    height: 40,
-    rotationSpeed: 0.05,
-  },
-  
-  // Asset paths (easily replaceable)
+  // Road settings
+  laneWidth: 300,
+  laneCount: 30,
+  roadColor: "#716c69",
+  lineColor: "#ffffff",
+  roadLineWidth: 5,
+  dashPattern: [40, 40],
+
+  // Chicken settings
+  chickenSize: 280, // Slightly smaller than lane width (300px)
+  chickenScale: 1,
+
+  // Performance
+  targetFPS: 60,
+
+  // Asset paths
   assets: {
-    background: '/assets/background.png',
-    road: '/assets/road.png',
-    chicken: '/assets/chicken.png',
-    car: '/assets/car.png',
-    coin: '/assets/coin.png',
+    start: "/start.png",
+    finish: "/finish.png",
+    chicken: "/assets/chicken.png",
   },
 };
 
-// Difficulty settings
+/**
+ * Difficulty settings for future game modes
+ */
 export const DIFFICULTY_SETTINGS = {
   Easy: {
-    carSpawnChance: 0.3,
-    carSpeed: 2,
-    coinChance: 0.8,
+    obstacleSpawnChance: 0.3,
+    obstacleSpeed: 2,
+    rewardChance: 0.8,
   },
   Medium: {
-    carSpawnChance: 0.5,
-    carSpeed: 3,
-    coinChance: 0.6,
+    obstacleSpawnChance: 0.5,
+    obstacleSpeed: 3,
+    rewardChance: 0.6,
   },
   Hard: {
-    carSpawnChance: 0.7,
-    carSpeed: 4,
-    coinChance: 0.4,
+    obstacleSpawnChance: 0.7,
+    obstacleSpeed: 4,
+    rewardChance: 0.4,
   },
   Hardcore: {
-    carSpawnChance: 0.9,
-    carSpeed: 5,
-    coinChance: 0.2,
+    obstacleSpawnChance: 0.9,
+    obstacleSpeed: 5,
+    rewardChance: 0.2,
   },
 };
+
+/**
+ * Get default game configuration
+ */
+export function getDefaultConfig() {
+  return { ...GAME_CONFIG };
+}

@@ -1,38 +1,41 @@
+import { BaseEntity } from "./BaseEntity.js";
+
 /**
- * ChickenAnimation - Professional chicken sprite renderer and animator
- * Handles loading, animating, and rendering the chicken character
+ * Chicken - The player character entity
+ * Handles chicken rendering and animation
  */
-export class ChickenAnimation {
-  constructor() {
-    this.chickenImage = null;
-    this.isLoaded = false;
+export class Chicken extends BaseEntity {
+  constructor(x, y, config) {
+    super(x, y);
+
+    this.config = config;
+    this.baseSize = config.chickenSize || 280; // Slightly smaller than lane width (300px)
+    this.scale = config.chickenScale || 1;
+    this.width = this.baseSize * this.scale;
+    this.height = this.baseSize * this.scale;
+
+    this.facingRight = true;
     this.currentAnimation = "idle";
     this.animationTime = 0;
-    this.scale = 0.5;
-    this.facingRight = true;
+    this.image = null;
   }
 
   /**
-   * Load the chicken sprite image
-   * @returns {Promise<void>}
+   * Set the chicken sprite image
    */
-  async load() {
-    return new Promise((resolve, reject) => {
-      this.chickenImage = new Image();
-      this.chickenImage.onload = () => {
-        this.isLoaded = true;
-        resolve();
-      };
-      this.chickenImage.onerror = () => {
-        reject(new Error("Failed to load chicken image"));
-      };
-      this.chickenImage.src = "/assets/chicken.png";
-    });
+  setImage(image) {
+    this.image = image;
   }
 
   /**
-   * Set the current animation
-   * @param {string} animationName - Name of the animation (idle, jump, death, etc.)
+   * Set the direction the chicken is facing
+   */
+  setDirection(facingRight) {
+    this.facingRight = facingRight;
+  }
+
+  /**
+   * Play animation
    */
   playAnimation(animationName) {
     if (this.currentAnimation !== animationName) {
@@ -42,59 +45,47 @@ export class ChickenAnimation {
   }
 
   /**
-   * Update the animation state   * @param {number} delta - Time delta in seconds
+   * Update chicken state
    */
-  update(delta) {
-    if (!this.isLoaded) return;
-    this.animationTime += delta;
+  update(deltaTime) {
+    if (!this.active) return;
+
+    this.animationTime += deltaTime;
   }
 
   /**
-   * Set the direction the chicken is facing
-   * @param {boolean} facingRight - True if facing right, false if facing left
+   * Render the chicken
    */
-  setDirection(facingRight) {
-    this.facingRight = facingRight;
-  }
+  render(renderer) {
+    if (!this.visible) return;
 
-  /**
-   * Render the chicken at the specified position
-   * @param {CanvasRenderingContext2D} context
-   * @param {number} x - X position (center)
-   * @param {number} y - Y position (center)
-   */
-  render(context, x, y) {
-    if (!this.isLoaded || !this.chickenImage) return;
-
+    const context = renderer.getContext();
     context.save();
 
-    // Calculate chicken dimensions
-    const chickenWidth = 120 * this.scale;
-    const chickenHeight = 120 * this.scale;
+    // Calculate render dimensions
+    const renderWidth = this.width;
+    const renderHeight = this.height;
 
     // Simple idle animation - subtle bob
     const bobOffset = Math.sin(this.animationTime * 3) * 2;
 
-    // Center position for drawing
-    const centerX = x;
-    const centerY = y + bobOffset;
+    // Center position
+    const centerX = this.x;
+    const centerY = this.y + bobOffset;
 
     // Draw the chicken
-    this.drawChicken(context, centerX, centerY, chickenWidth, chickenHeight);
+    this.drawChicken(context, centerX, centerY, renderWidth, renderHeight);
 
     context.restore();
   }
 
   /**
-   * Draw the chicken character
-   * @param {CanvasRenderingContext2D} context
-   * @param {number} x - X position (center)
-   * @param {number} y - Y position (center)
-   * @param {number} width - Width to draw
-   * @param {number} height - Height to draw
+   * Draw the chicken character (geometric representation)
    */
   drawChicken(context, x, y, width, height) {
-    // Draw shadow
+    const scale = width / 120; // Base size is 120
+
+    // Shadow
     context.fillStyle = "rgba(0, 0, 0, 0.2)";
     context.beginPath();
     context.ellipse(
@@ -108,13 +99,13 @@ export class ChickenAnimation {
     );
     context.fill();
 
-    // Body (main circle)
+    // Body
     context.fillStyle = "#FFFFFF";
     context.beginPath();
     context.ellipse(x, y, width * 0.35, height * 0.4, 0, 0, Math.PI * 2);
     context.fill();
     context.strokeStyle = "#E0E0E0";
-    context.lineWidth = 2;
+    context.lineWidth = 2 * scale;
     context.stroke();
 
     // Head
@@ -129,10 +120,10 @@ export class ChickenAnimation {
     );
     context.fill();
     context.strokeStyle = "#E0E0E0";
-    context.lineWidth = 2;
+    context.lineWidth = 2 * scale;
     context.stroke();
 
-    // Comb (red top thing)
+    // Comb (red top)
     context.fillStyle = "#FF0000";
     context.beginPath();
     context.moveTo(x + width * 0.15, y - height * 0.45);
@@ -205,10 +196,10 @@ export class ChickenAnimation {
     );
     context.fill();
     context.strokeStyle = "#D0D0D0";
-    context.lineWidth = 1.5;
+    context.lineWidth = 1.5 * scale;
     context.stroke();
 
-    // Feet (simple orange triangles)
+    // Feet
     context.fillStyle = "#FFB347";
     // Left foot
     context.beginPath();
@@ -224,24 +215,5 @@ export class ChickenAnimation {
     context.lineTo(x + width * 0.15, y + height * 0.48);
     context.closePath();
     context.fill();
-  }
-
-  /**
-   * Get the current bounding box of the chicken
-   * @returns {Object} Bounding box {width, height}
-   */
-  getBounds() {
-    return {
-      width: 120 * this.scale,
-      height: 120 * this.scale,
-    };
-  }
-
-  /**
-   * Clean up resources
-   */
-  dispose() {
-    this.chickenImage = null;
-    this.isLoaded = false;
   }
 }
