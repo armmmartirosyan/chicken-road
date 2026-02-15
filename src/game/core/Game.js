@@ -1,6 +1,7 @@
 import { GameLoop } from "./GameLoop.js";
 import { Renderer } from "./Renderer.js";
 import { Camera } from "./Camera.js";
+import { CarSpawner } from "../systems/CarSpawner.js";
 
 /**
  * Game - Main game class that orchestrates all game systems
@@ -21,6 +22,7 @@ export class Game {
     this.entityManager = null;
     this.assetManager = null;
     this.inputSystem = null;
+    this.carSpawner = null;
 
     // Event listeners for React integration
     this.eventListeners = new Map();
@@ -51,6 +53,9 @@ export class Game {
     this.inputSystem.onDragEnd(() => {
       this.emit("dragEnd");
     });
+
+    // Initialize car spawner
+    this.carSpawner = new CarSpawner(this.config.carSpawner || {});
 
     // Emit initialization complete
     this.emit("initialized");
@@ -123,6 +128,11 @@ export class Game {
       this.entityManager.update(deltaTime);
     }
 
+    // Update car spawner
+    if (this.carSpawner) {
+      this.carSpawner.update(deltaTime);
+    }
+
     // Update FPS counter
     this.updateFPS(deltaTime);
   }
@@ -134,11 +144,17 @@ export class Game {
     // Clear canvas
     this.renderer.clear();
 
+    // Begin rendering (prepares offscreen buffer if using double buffering)
+    this.renderer.begin();
+
     // Render all entities without camera transform
     // (using container scroll instead for better performance)
     if (this.entityManager) {
       this.entityManager.render(this.renderer);
     }
+
+    // End rendering (swaps buffers if using double buffering)
+    this.renderer.end();
   }
 
   /**
@@ -221,6 +237,10 @@ export class Game {
 
     if (this.inputSystem) {
       this.inputSystem.destroy();
+    }
+
+    if (this.carSpawner) {
+      this.carSpawner.cleanup();
     }
 
     if (this.entityManager) {

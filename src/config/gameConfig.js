@@ -27,6 +27,22 @@ export const GAME_CONFIG = {
     start: "/start.png",
     finish: "/finish.png",
     chicken: "/assets/chicken.png",
+    // Car assets
+    cars: {
+      "truck-orange": "/assets/truck-orange.png",
+      "truck-blue": "/assets/truck-blue.png",
+      "car-yellow": "/assets/car-yellow.png",
+      "car-police": "/assets/car-police.png",
+    },
+  },
+
+  // Car spawner settings (vertical traffic) - optimized for performance
+  carSpawner: {
+    minSpawnInterval: 0.3, // Much faster spawning
+    maxSpawnInterval: 1.2, // More frequent cars
+    minSpeed: 200, // Significantly faster (vertical movement)
+    maxSpeed: 450, // Much faster max speed
+    poolSize: 30, // Larger pool for more simultaneous cars
   },
 };
 

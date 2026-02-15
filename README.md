@@ -7,19 +7,26 @@ A modern, performant browser-based game built with React and HTML5 Canvas. Watch
 ## ✨ Features
 
 - **High-Performance Canvas Rendering**: 60 FPS smooth gameplay using separated game loop architecture
+- **Dynamic Car Traffic**: Intelligent car spawning system with object pooling and memory management
 - **Responsive Design**: Adapts to any screen size while maintaining optimal gameplay
 - **Modern Architecture**: Clean separation of game logic and React UI layer
 - **Intuitive Controls**: Drag to pan the viewport and explore the game world
 - **Professional Chicken Animation**: Custom-drawn animated chicken character
-- **Extensive Road System**: 30 lane road with dynamic rendering
+- **Extensive Road System**: 30 lane road with dynamic rendering and alternating traffic
 - **Modular & Extensible**: Easy to add new features, obstacles, and game mechanics
+- **Optimized Performance**: Object pooling, efficient cleanup, and smart spawn timing
 
 ## 🎮 Game Features
 
 - **Interactive Gameplay**: Smooth drag-to-pan viewport control
+- **Intelligent Traffic System**: Cars spawn dynamically with varied speeds and types
+  - Object pooling for optimal memory management
+  - Smart cleanup of offscreen vehicles
+  - Alternating lane directions for realistic traffic flow
+  - 2-5 second spawn intervals with lane-specific spawn rates
 - **Visual Feedback**: Real-time cursor changes and loading states
 - **Performance Optimized**: Efficient entity management and rendering
-- **Scalable Architecture**: Built to support future features (obstacles, scoring, levels)
+- **Scalable Architecture**: Built to support future features (collision detection, scoring, levels)
 
 ## 🏗️ Architecture
 
@@ -38,10 +45,12 @@ src/
 │   ├── entities/           # Game objects
 │   │   ├── BaseEntity.js   # Abstract entity class
 │   │   ├── Chicken.js      # Player character
+│   │   ├── Car.js          # Vehicle obstacle entity
 │   │   ├── Road.js         # Road with lanes
 │   │   └── Scenery.js      # Start/finish images
 │   ├── systems/            # Game logic systems
-│   │   └── InputSystem.js  # Mouse/touch handling
+│   │   ├── InputSystem.js  # Mouse/touch handling
+│   │   └── CarSpawner.js   # Car spawning & object pooling
 │   └── managers/
 │       ├── EntityManager.js # Entity lifecycle
 │       └── AssetManager.js  # Image loading & caching

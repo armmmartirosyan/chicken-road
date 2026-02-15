@@ -5,6 +5,144 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-02-15
+
+### Game Feature - Dynamic Traffic System
+
+This release adds a comprehensive car crossing system with intelligent spawning, object pooling, and professional memory management.
+
+### Added
+
+#### Traffic System
+
+- **Car Entity** (`Car.js`)
+  - Complete vehicle obstacle entity extending BaseEntity
+  - Dynamic movement with configurable speeds (150-350 px/s)
+  - Directional rendering (automatic horizontal flip for left-moving cars)
+  - Collision detection methods (getBounds, checkCollision)
+  - Object pool support for memory efficiency
+  - Automatic offscreen detection and cleanup
+  - Size: 280x140px (20px smaller than lane width for proper fit)
+
+- **Car Spawner System** (`CarSpawner.js`)
+  - Intelligent car spawning with randomized intervals (2-5 seconds)
+  - **Object Pooling**: Pre-allocates 20 car objects for optimal performance
+  - **Memory Management**: Cars are recycled, not destroyed, when offscreen
+  - Lane-specific spawn rates for varied traffic density
+  - Alternating lane directions for realistic traffic flow
+  - Speed variation per car (150-350 pixels/second)
+  - Support for multiple car types with weighted randomization
+  - Pool statistics tracking for debugging
+  - Automatic cleanup on game destroy
+
+#### Car Types
+
+- **4 Vehicle Types** with weighted spawn probabilities:
+  - `truck-orange`: 30% spawn chance - Orange/yellow truck
+  - `truck-blue`: 30% spawn chance - Blue truck
+  - `car-yellow`: 20% spawn chance - Yellow car
+  - `car-police`: 20% spawn chance - Police car
+
+#### Configuration
+
+- **Car Spawner Config** (`gameConfig.js`)
+
+  ```javascript
+  carSpawner: {
+    minSpawnInterval: 2.0,  // seconds
+    maxSpawnInterval: 5.0,  // seconds
+    minSpeed: 150,          // pixels/second
+    maxSpeed: 350,          // pixels/second
+    poolSize: 20,           // object pool size
+  }
+  ```
+
+- **Asset Configuration**
+  - Added car image paths to asset configuration
+  - Support for 4 different car sprite images
+
+#### Documentation
+
+- **CAR_ASSETS.md**: Comprehensive guide for car asset setup
+  - Image requirements and specifications
+  - Extraction instructions from sprite sheets
+  - Troubleshooting guide
+  - System features documentation
+  - Configuration examples
+
+- **Asset Setup Script** (`scripts/generateCarPlaceholders.js`)
+  - Instructions for adding car images
+  - Reference guide for required asset files
+
+### Changed
+
+- **Game.js**: Integrated CarSpawner into main game loop
+  - Added carSpawner property and initialization
+  - Update loop calls carSpawner.update(deltaTime)
+  - Cleanup method includes carSpawner.cleanup()
+
+- **useGame Hook**: Added car image loading and spawner initialization
+  - Loads 4 car sprite images on game start
+  - Initializes CarSpawner with road entity reference
+  - Ensures spawner is ready before game starts
+
+- **README.md**: Updated features and architecture
+  - Added traffic system to features list
+  - Documented car spawning and object pooling
+  - Updated project structure to include Car and CarSpawner
+
+### Technical Details
+
+#### Performance Optimizations
+
+1. **Object Pooling Pattern**
+   - Pre-allocates 20 car objects at initialization
+   - Reuses inactive cars instead of creating/destroying
+   - Prevents garbage collection spikes during gameplay
+   - Dynamically expands pool if needed
+
+2. **Memory Management**
+   - Cars marked inactive when offscreen (not deleted)
+   - Automatic cleanup removes cars from entity manager
+   - Released cars returned to pool for reuse
+   - No memory leaks from abandoned objects
+
+3. **Smart Spawning**
+   - Randomized intervals prevent predictable patterns
+   - Lane-specific spawn chances vary traffic density
+   - Spawn positions offscreen for smooth entrance
+   - Direction-based positioning (left/right spawn sides)
+
+4. **Rendering Optimization**
+   - Cars only rendered when visible
+   - Automatic image flipping via canvas transforms
+   - Centered positioning for accurate collision detection
+
+#### Architecture Benefits
+
+- **Separated Concerns**: Traffic logic isolated in CarSpawner system
+- **Testability**: CarSpawner can be tested independently
+- **Scalability**: Easy to add new car types or modify spawn logic
+- **Maintainability**: Clear separation between car entity and spawning logic
+- **Code Splitting**: Follows best practices for modular game systems
+
+### Migration Guide
+
+No breaking changes. The car system is automatically initialized and runs independently.
+
+To customize car spawning behavior, modify `carSpawner` config in `gameConfig.js`.
+
+### Asset Requirements
+
+⚠️ **IMPORTANT**: This version requires 4 car sprite images to be added manually:
+
+1. `/public/assets/truck-orange.png`
+2. `/public/assets/truck-blue.png`
+3. `/public/assets/car-yellow.png`
+4. `/public/assets/car-police.png`
+
+See `CAR_ASSETS.md` for detailed instructions.
+
 ## [2.0.0] - 2026-02-15
 
 ### Major Refactoring - Game Architecture Overhaul

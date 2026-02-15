@@ -54,6 +54,11 @@ export function useGame(canvasRef, config) {
           { key: "start", url: "/start.png" },
           { key: "finish", url: "/finish.png" },
           { key: "chicken", url: "/assets/chicken.png" },
+          // Car images
+          { key: "truck-orange", url: "/assets/truck-orange.png" },
+          { key: "truck-blue", url: "/assets/truck-blue.png" },
+          { key: "car-yellow", url: "/assets/car-yellow.png" },
+          { key: "car-police", url: "/assets/car-police.png" },
         ]);
 
         // Get loaded images
@@ -113,6 +118,19 @@ export function useGame(canvasRef, config) {
         chicken.setDirection(true); // Facing right
         entityManager.addEntity(chicken);
         chickenRef.current = chicken;
+
+        // Initialize car spawner with road, chicken, and container element
+        // Get container element (parent of canvas)
+        const containerElement = canvas.parentElement;
+        if (game.carSpawner) {
+          game.carSpawner.initialize(
+            entityManager,
+            assetManager,
+            road,
+            chicken,
+            containerElement,
+          );
+        }
 
         // Subscribe to game events
         game.on("stateChange", (data) => {

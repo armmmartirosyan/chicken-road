@@ -55,8 +55,8 @@ export function Header({ balance = 1000000 }) {
             <path
               d="M7.33268 5.1665L11.3327 1.1665M11.3327 1.1665H8.33268M11.3327 1.1665V4.1665M0.666016 1.1665L4.66602 5.1665M0.666016 1.1665V4.1665M0.666016 1.1665H3.66602M7.33268 7.83317L11.3327 11.8332M11.3327 11.8332V8.83317M11.3327 11.8332H8.33268M4.66602 7.83317L0.666016 11.8332M0.666016 11.8332H3.66602M0.666016 11.8332L0.666016 8.83317"
               stroke="white"
-              stroke-linecap="round"
-              stroke-linejoin="round"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             ></path>
           </svg>
         </div>

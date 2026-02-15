@@ -21,16 +21,29 @@
 .game-canvas {
   display: block;
   cursor: inherit;
+  image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
-  image-rendering: pixelated;
   height: 100%;
   width: auto;
   user-select: none;
   pointer-events: none;
-  /* Hardware acceleration and rendering optimizations */
+  /* Advanced hardware acceleration for anti-flickering */
   transform: translateZ(0);
+  transform: translate3d(0, 0, 0);
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  -webkit-perspective: 1000px;
+  perspective: 1000px;
+  -webkit-transform: translate3d(0, 0, 0);
+  /* Rendering optimizations */
   contain: layout style paint;
+  content-visibility: auto;
+  /* Anti-flickering and smoothing */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Only use will-change during animations, not always */
+  /* Commented out to prevent overuse: will-change: transform; */
+}
 }
 
 .game-loading {

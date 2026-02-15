@@ -41,29 +41,32 @@ export class EntityManager {
    * Update all entities
    */
   update(deltaTime) {
-    // Process additions
+    // Process additions (batch operation)
     if (this.entitiesToAdd.length > 0) {
       this.entities.push(...this.entitiesToAdd);
-      this.entitiesToAdd = [];
+      this.entitiesToAdd.length = 0; // Faster than = []
     }
 
     // Update active entities
-    for (const entity of this.entities) {
+    for (let i = 0; i < this.entities.length; i++) {
+      const entity = this.entities[i];
       if (entity.active) {
         entity.update(deltaTime);
       }
     }
 
-    // Process removals
+    // Process removals (batch operation)
     if (this.entitiesToRemove.length > 0) {
-      for (const entityToRemove of this.entitiesToRemove) {
-        const index = this.entities.indexOf(entityToRemove);
-        if (index !== -1) {
-          this.entities.splice(index, 1);
-          entityToRemove.destroy();
+      // Use filter for better performance with many removals
+      const toRemoveSet = new Set(this.entitiesToRemove);
+      this.entities = this.entities.filter((entity) => {
+        if (toRemoveSet.has(entity)) {
+          entity.destroy();
+          return false;
         }
-      }
-      this.entitiesToRemove = [];
+        return true;
+      });
+      this.entitiesToRemove.length = 0;
     }
   }
 
@@ -71,7 +74,9 @@ export class EntityManager {
    * Render all entities
    */
   render(renderer) {
-    for (const entity of this.entities) {
+    // Optimized: use for loop instead of for...of for better performance
+    for (let i = 0; i < this.entities.length; i++) {
+      const entity = this.entities[i];
       if (entity.visible) {
         entity.render(renderer);
       }
@@ -82,12 +87,13 @@ export class EntityManager {
    * Clear all entities
    */
   clear() {
-    for (const entity of this.entities) {
-      entity.destroy();
+    // Optimized: destroy all and clear arrays efficiently
+    for (let i = 0; i < this.entities.length; i++) {
+      this.entities[i].destroy();
     }
-    this.entities = [];
-    this.entitiesToAdd = [];
-    this.entitiesToRemove = [];
+    this.entities.length = 0;
+    this.entitiesToAdd.length = 0;
+    this.entitiesToRemove.length = 0;
   }
 
   /**

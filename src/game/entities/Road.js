@@ -44,24 +44,21 @@ export class Road extends BaseEntity {
       this.backgroundColor,
     );
 
-    // Draw lane dividers
+    // Optimize: Set line style once before drawing all lanes
     context.strokeStyle = this.lineColor;
     context.lineWidth = this.lineWidth;
     context.setLineDash(this.dashPattern);
 
+    // Begin path for all lane dividers (batch rendering)
+    context.beginPath();
     for (let i = 1; i < this.laneCount; i++) {
       const laneX = this.x + i * this.laneWidth;
-      renderer.drawLine(
-        laneX,
-        this.y,
-        laneX,
-        this.y + this.height,
-        this.lineColor,
-        this.lineWidth,
-        this.dashPattern,
-      );
+      context.moveTo(laneX, this.y);
+      context.lineTo(laneX, this.y + this.height);
     }
+    context.stroke();
 
+    // Reset line dash once after all lanes drawn
     context.setLineDash([]);
   }
 
