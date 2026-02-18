@@ -8,16 +8,16 @@
  */
 export const GAME_CONFIG = {
   // Road settings
-  laneWidth: 300,
+  laneWidth: 210,
   laneCount: 30,
   roadColor: "#716c69",
   lineColor: "#ffffff",
-  roadLineWidth: 5,
-  dashPattern: [40, 40],
+  roadLineWidth: 3.5,
+  dashPattern: [28, 28],
 
   // Chicken settings
-  chickenSize: 280, // Slightly smaller than lane width (300px)
-  chickenScale: 1,
+  chickenSize: 196,
+  chickenScale: 0.7,
 
   // Performance
   targetFPS: 60,

@@ -61,7 +61,7 @@ export class Chicken extends BaseEntity {
           foundAnimation = true;
           console.log(`\u2705 Playing Spine animation: ${animName}`);
           break;
-        } catch (e) {
+        } catch {
           // Animation doesn't exist, try next
         }
       }
@@ -110,7 +110,7 @@ export class Chicken extends BaseEntity {
       try {
         this.spine.state.setAnimation(0, animationName, true);
         this.currentAnimation = animationName;
-      } catch (e) {
+      } catch {
         console.warn(`Animation ${animationName} not found`);
       }
     }

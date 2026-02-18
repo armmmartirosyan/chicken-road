@@ -44,7 +44,6 @@
   /* Only use will-change during animations, not always */
   /* Commented out to prevent overuse: will-change: transform; */
 }
-}
 
 .game-loading {
   position: absolute;

@@ -6,11 +6,12 @@ import { Sprite } from "pixi.js";
  * Handles scenery rendering with hardware acceleration
  */
 export class Scenery extends BaseEntity {
-  constructor(x, y, type, texture = null) {
+  constructor(x, y, type, texture = null, scale = 1) {
     super(x, y);
 
     this.type = type; // 'start' or 'finish'
     this.sprite = null;
+    this.scale = scale;
 
     if (texture) {
       this.setTexture(texture);
@@ -33,10 +34,11 @@ export class Scenery extends BaseEntity {
 
     this.sprite = new Sprite(texture);
     this.sprite.position.set(0, 0);
+    this.sprite.scale.set(this.scale);
     this.container.addChild(this.sprite);
 
-    this.width = texture.width;
-    this.height = texture.height;
+    this.width = texture.width * this.scale;
+    this.height = texture.height * this.scale;
   }
 
   /**

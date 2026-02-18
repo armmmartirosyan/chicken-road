@@ -15,9 +15,8 @@ export class Car extends BaseEntity {
     this.carType = config.carType || "truck"; // truck, car, etc.
     this.roadBottomY = config.roadBottomY || 1000; // Bottom boundary for offscreen detection
 
-    // Size: 20px smaller than lane width (300px -> 280px)
-    this.width = 280;
-    this.height = 140; // Will be recalculated based on image aspect ratio
+    this.width = 196;
+    this.height = 98; // Will be recalculated based on image aspect ratio
 
     this.sprite = null;
     this.isOffscreen = false;

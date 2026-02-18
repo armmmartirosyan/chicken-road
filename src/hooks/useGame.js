@@ -78,11 +78,14 @@ export function useGame(canvasRef, config) {
         const startTexture = textures.start;
         const finishTexture = textures.finish;
 
-        // Calculate layout using texture dimensions
-        const startWidth = startTexture.width;
-        const startHeight = startTexture.height;
-        const finishWidth = finishTexture.width;
-        const finishHeight = finishTexture.height;
+        // Scaling factor for all elements
+        const sceneryScale = 0.7;
+
+        // Calculate layout using scaled texture dimensions
+        const startWidth = startTexture.width * sceneryScale;
+        const startHeight = startTexture.height * sceneryScale;
+        const finishWidth = finishTexture.width * sceneryScale;
+        const finishHeight = finishTexture.height * sceneryScale;
         const roadHeight = startHeight;
         const roadWidth = config.laneWidth * config.laneCount;
 
@@ -93,9 +96,19 @@ export function useGame(canvasRef, config) {
         // Update game renderer with new size
         game.resize(totalWidth, totalHeight);
 
-        // Create entities with Pixi textures
+        // Move scenery up to reveal walking road
+        const sceneryOffsetY = -50;
+
+        // Create entities with Pixi texture
+
         // Start scenery
-        const startScenery = new Scenery(0, 0, "start", startTexture);
+        const startScenery = new Scenery(
+          0,
+          sceneryOffsetY,
+          "start",
+          startTexture,
+          sceneryScale,
+        );
         entityManager.addEntity(startScenery);
 
         // Road
@@ -113,15 +126,16 @@ export function useGame(canvasRef, config) {
         // Finish scenery (only half visible)
         const finishScenery = new Scenery(
           startWidth + roadWidth,
-          0,
+          sceneryOffsetY,
           "finish",
           finishTexture,
+          sceneryScale,
         );
         entityManager.addEntity(finishScenery);
 
         // Chicken with Spine animation
-        const chickenX = startWidth - 80;
-        const chickenY = roadHeight * 0.7;
+        const chickenX = startWidth - 160;
+        const chickenY = roadHeight * 0.7 + 70;
         const chicken = new Chicken(chickenX, chickenY, {
           chickenSize: config.chickenSize,
           chickenScale: config.chickenScale || 0.5,
