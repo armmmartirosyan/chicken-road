@@ -39,7 +39,7 @@ export function ControlPanel({
           <div className="slider-container">
             <button
               className="slider-label"
-              onClick={() => !disabled && handleSliderChange(0.1)}
+              onClick={() => !disabled && handleSliderChange(0.01)}
               disabled={disabled}
             >
               MIN
@@ -47,7 +47,7 @@ export function ControlPanel({
             <div className="slider-value">{sliderValue.toFixed(1)}</div>
             <button
               className="slider-label"
-              onClick={() => !disabled && handleSliderChange(10)}
+              onClick={() => !disabled && handleSliderChange(200)}
               disabled={disabled}
             >
               MAX

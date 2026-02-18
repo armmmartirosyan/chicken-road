@@ -12,6 +12,7 @@ export class CarSpawner {
     this.road = null;
     this.chicken = null; // Reference to chicken for smart spawning
     this.containerElement = null; // For viewport detection
+    this.gateManager = null; // Reference to gate manager for blocking cars
 
     // Object pool for cars
     this.carPool = [];
@@ -54,12 +55,20 @@ export class CarSpawner {
   /**
    * Initialize the spawner
    */
-  initialize(entityManager, pixiRenderer, road, chicken, containerElement) {
+  initialize(
+    entityManager,
+    pixiRenderer,
+    road,
+    chicken,
+    containerElement,
+    gateManager = null,
+  ) {
     this.entityManager = entityManager;
     this.pixiRenderer = pixiRenderer; // Use Pixi renderer for texture access
     this.road = road;
     this.chicken = chicken; // Store chicken reference for smart spawning
     this.containerElement = containerElement; // For viewport detection
+    this.gateManager = gateManager; // Store gate manager reference for car blocking
 
     // Calculate lane positions and road boundaries
     this.startX = road.x;
@@ -253,6 +262,11 @@ export class CarSpawner {
     if (!this.pixiRenderer || !this.entityManager) return;
     if (laneIndex < 0 || laneIndex >= this.lanes.length) return;
 
+    // Don't spawn cars on lanes that have gates
+    if (this.gateManager && this.gateManager.hasGateOnLane(laneIndex)) {
+      return;
+    }
+
     const lane = this.lanes[laneIndex];
 
     // Check if lane is on cooldown
@@ -298,12 +312,18 @@ export class CarSpawner {
       spawnY = scrollY - 200; // Spawn above current viewport
     }
 
+    // Get gate for this lane (if any)
+    const laneGate = this.gateManager
+      ? this.gateManager.getGateForLane(lane.index)
+      : null;
+
     // Reset car with new configuration
     car.reset(spawnX, spawnY, {
       lane: lane.index,
       speed: speed,
       carType: carType.type,
       roadBottomY: this.roadY + this.roadHeight,
+      gate: laneGate, // Pass gate reference for this specific lane
     });
 
     car.setTexture(texture);

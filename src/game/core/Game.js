@@ -1,6 +1,7 @@
 import { PixiRenderer } from "./PixiRenderer.js";
 import { CarSpawner } from "../systems/CarSpawner.js";
 import { CoinManager } from "../managers/CoinManager.js";
+import { GateManager } from "../managers/GateManager.js";
 
 /**
  * Game - Main game class that orchestrates all game systems using Pixi.js
@@ -22,6 +23,7 @@ export class Game {
     this.inputSystem = null;
     this.carSpawner = null;
     this.coinManager = null;
+    this.gateManager = null;
   }
 
   /**
@@ -45,6 +47,9 @@ export class Game {
 
     // Initialize coin manager
     this.coinManager = new CoinManager(this.config);
+
+    // Initialize gate manager
+    this.gateManager = new GateManager(this.config);
 
     this.initialized = true;
   }
@@ -127,6 +132,11 @@ export class Game {
     if (this.coinManager) {
       this.coinManager.update(deltaTime);
     }
+
+    // Update gate manager
+    if (this.gateManager) {
+      this.gateManager.update(deltaTime);
+    }
   }
 
   /**
@@ -164,6 +174,10 @@ export class Game {
 
     if (this.coinManager) {
       this.coinManager.cleanup();
+    }
+
+    if (this.gateManager) {
+      this.gateManager.destroy();
     }
 
     if (this.entityManager) {

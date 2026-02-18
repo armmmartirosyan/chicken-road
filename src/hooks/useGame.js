@@ -61,6 +61,8 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         const textures = await game.renderer.loadTextures([
           { key: "start", url: "/start.png" },
           { key: "finish", url: "/finish.png" },
+          // Gate image
+          { key: "gate", url: "/gate.png" },
           // Coin images
           { key: "coin", url: "/coin.png" },
           { key: "coin-gold", url: "/coin-gold.png" },
@@ -191,7 +193,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         startWidthRef.current = startWidth;
         roadWidthRef.current = roadWidth;
 
-        // Initialize car spawner with road, chicken, and container element
+        // Initialize car spawner with road, chicken, gate manager, and container element
         // Get container element (parent of canvas)
         const containerElement = canvas.parentElement;
         if (game.carSpawner) {
@@ -201,12 +203,23 @@ export function useGame(canvasRef, config, scrollContainerRef) {
             road,
             chicken,
             containerElement,
+            game.gateManager, // Pass gate manager
           );
         }
 
         // Initialize coin manager with road and chicken
         if (game.coinManager) {
           game.coinManager.initialize(
+            entityManager,
+            game.renderer,
+            road,
+            chicken,
+          );
+        }
+
+        // Initialize gate manager with road and chicken
+        if (game.gateManager) {
+          game.gateManager.initialize(
             entityManager,
             game.renderer,
             road,

@@ -14,6 +14,8 @@ export class Car extends BaseEntity {
     this.speed = config.speed || 200; // pixels per second (moving down)
     this.carType = config.carType || "truck"; // truck, car, etc.
     this.roadBottomY = config.roadBottomY || 1000; // Bottom boundary for offscreen detection
+    this.gate = config.gate || null; // Gate reference for stopping
+    this.isStopped = false; // Track if car is stopped at gate
 
     this.width = 196;
     this.height = 98; // Will be recalculated based on image aspect ratio
@@ -67,6 +69,8 @@ export class Car extends BaseEntity {
     this.speed = config.speed || 200;
     this.carType = config.carType || "truck";
     this.roadBottomY = config.roadBottomY || 1000;
+    this.gate = config.gate || null;
+    this.isStopped = false;
     this.active = true;
     this.visible = true;
     this.isOffscreen = false;
@@ -86,6 +90,24 @@ export class Car extends BaseEntity {
     super.update(deltaTime);
 
     if (!this.active) return;
+
+    // Don't move if already stopped at gate
+    if (this.isStopped) {
+      return;
+    }
+
+    // Check if car should stop at gate BEFORE moving
+    if (this.gate && this.lane === this.gate.laneIndex) {
+      const gateStopY = this.gate.getStopY();
+      const nextY = this.y + this.speed * deltaTime;
+
+      // If next position would pass gate, stop at gate instead
+      if (nextY >= gateStopY) {
+        this.y = gateStopY;
+        this.isStopped = true;
+        return; // Don't move further
+      }
+    }
 
     // Move car downward along the lane
     this.y += this.speed * deltaTime;

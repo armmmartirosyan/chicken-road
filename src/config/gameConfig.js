@@ -27,6 +27,7 @@ export const GAME_CONFIG = {
     start: "/start.png",
     finish: "/finish.png",
     chicken: "/assets/chicken.png",
+    gate: "/gate.png",
     // Coin assets
     coin: "/coin.png",
     "coin-gold": "/coin-gold.png",
