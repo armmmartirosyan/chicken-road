@@ -114,6 +114,7 @@ export class Chicken extends BaseEntity {
         complete: (entry) => {
           // When jump animation completes, return to idle
           if (entry.animation.name === "jump" && !this.isJumping) {
+            this.spine.state.timeScale = 1;
             this.playAnimation("idle", true);
           }
         },
@@ -212,6 +213,7 @@ export class Chicken extends BaseEntity {
         if (this.spine && this.spine.state) {
           try {
             this.spine.state.setAnimation(0, "jump", false);
+            this.spine.state.timeScale = 2;
             this.currentAnimation = "jump";
             console.log("✅ Playing jump animation before position changes");
           } catch {
