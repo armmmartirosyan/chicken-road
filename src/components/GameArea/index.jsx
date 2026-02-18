@@ -1,10 +1,13 @@
 import { CanvasGameArea } from "./CanvasGameArea";
 import "./index.css";
 
-export function GameArea() {
+export function GameArea({ onJumpReady, scrollContainerRef }) {
   return (
     <div className="game-area-wrapper">
-      <CanvasGameArea />
+      <CanvasGameArea
+        onJumpReady={onJumpReady}
+        scrollContainerRef={scrollContainerRef}
+      />
     </div>
   );
 }

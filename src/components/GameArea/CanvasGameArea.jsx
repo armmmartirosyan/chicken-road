@@ -7,13 +7,27 @@ import "./CanvasGameArea.css";
  * CanvasGameArea - Main game canvas component
  * Uses the new game architecture with separated game loop
  */
-export function CanvasGameArea() {
+export function CanvasGameArea({ onJumpReady, scrollContainerRef }) {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
 
+  // Pass containerRef to parent for scroll control
+  useEffect(() => {
+    if (containerRef.current && scrollContainerRef) {
+      scrollContainerRef.current = containerRef.current;
+    }
+  }, [scrollContainerRef]);
+
   // Initialize game with default configuration
   const config = getDefaultConfig();
-  const { isLoading } = useGame(canvasRef, config);
+  const { isLoading, jumpChicken } = useGame(canvasRef, config, containerRef);
+
+  // Notify parent when jump function is ready
+  useEffect(() => {
+    if (!isLoading && jumpChicken && onJumpReady) {
+      onJumpReady(jumpChicken);
+    }
+  }, [isLoading, jumpChicken, onJumpReady]);
 
   // Handle mouse drag scrolling directly on the container
   useEffect(() => {

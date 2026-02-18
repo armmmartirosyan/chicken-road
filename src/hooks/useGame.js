@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Game } from "../game/core/Game.js";
 import { EntityManager } from "../game/managers/EntityManager.js";
 import { InputSystem } from "../game/systems/InputSystem.js";
@@ -10,11 +10,18 @@ import { Scenery } from "../game/entities/Scenery.js";
  * useGame - Custom hook to manage game instance lifecycle with Pixi.js
  * Initializes game, loads assets, creates entities, and manages game state
  */
-export function useGame(canvasRef, config) {
+export function useGame(canvasRef, config, scrollContainerRef) {
   const gameRef = useRef(null);
   const entityManagerRef = useRef(null);
   const chickenRef = useRef(null);
   const isInitializedRef = useRef(false);
+
+  // Lane tracking for chicken jumps
+  const currentLaneRef = useRef(0); // 0 = start sidewalk, 1-N = road lanes, N+1 = finish sidewalk
+  const lanePositionsRef = useRef([]); // Array of X positions for each lane
+  const totalLanesRef = useRef(0); // Total number of lanes including sidewalks
+  const startWidthRef = useRef(0); // Store start scenery width for camera calculations
+  const roadWidthRef = useRef(0); // Store total road width
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -153,6 +160,34 @@ export function useGame(canvasRef, config) {
         entityManager.addEntity(chicken);
         chickenRef.current = chicken;
 
+        // Calculate lane positions for jumping
+        // Lane 0: starting position (on start scenery/sidewalk)
+        // Lanes 1 to laneCount: road lanes (center of each lane)
+        // Lane laneCount+1: finish position (on finish scenery/sidewalk)
+        const lanePositions = [];
+
+        // Starting position (current chicken position)
+        lanePositions.push(chickenX);
+
+        // Road lane positions (center of each lane)
+        for (let i = 0; i < config.laneCount; i++) {
+          const laneCenter =
+            startWidth + i * config.laneWidth + config.laneWidth / 2;
+          lanePositions.push(laneCenter);
+        }
+
+        // Finish position (on finish sidewalk)
+        const finishX = startWidth + roadWidth + 160;
+        lanePositions.push(finishX);
+
+        lanePositionsRef.current = lanePositions;
+        totalLanesRef.current = lanePositions.length;
+        currentLaneRef.current = 0; // Start at position 0
+
+        // Store layout dimensions for camera scrolling
+        startWidthRef.current = startWidth;
+        roadWidthRef.current = roadWidth;
+
         // Initialize car spawner with road, chicken, and container element
         // Get container element (parent of canvas)
         const containerElement = canvas.parentElement;
@@ -196,10 +231,92 @@ export function useGame(canvasRef, config) {
     };
   }, []); // Empty deps - only run once
 
+  // Jump function to move chicken to next lane (memoized to prevent re-renders)
+  const jumpChicken = useCallback(() => {
+    const chicken = chickenRef.current;
+    const game = gameRef.current;
+    if (!chicken || chicken.isJumping || !game) return false; // Can't jump if already jumping
+
+    const currentLane = currentLaneRef.current;
+    const totalLanes = totalLanesRef.current;
+
+    // Check if chicken can jump forward
+    if (currentLane >= totalLanes - 1) {
+      console.log("Chicken has reached the end!");
+      return false; // Already at finish
+    }
+
+    // Move to next lane
+    const nextLane = currentLane + 1;
+    const targetX = lanePositionsRef.current[nextLane];
+
+    console.log(
+      `Jumping from lane ${currentLane} to lane ${nextLane}, position ${targetX}`,
+    );
+
+    // Start moving world when jumping FROM lane 2 TO lane 3 (nextLane >= 3)
+    const shouldMoveWorld = nextLane >= 3;
+    const wasMovingWorld = currentLane >= 3;
+
+    if (shouldMoveWorld && scrollContainerRef?.current) {
+      const container = scrollContainerRef.current;
+      const containerWidth = container.clientWidth;
+      const fixedChickenX = containerWidth * 0.4;
+
+      // If this is the first time entering world-move mode, set chicken to fixed position
+      if (!wasMovingWorld) {
+        chicken.container.position.x = fixedChickenX;
+        console.log(
+          `🐔 Setting chicken to fixed viewport position: ${fixedChickenX}px`,
+        );
+      }
+
+      // Calculate world offset animation
+      const stage = game.renderer?.app?.stage;
+      if (stage) {
+        // Current world offset (where we are now)
+        // On first transition to world-move mode, calculate based on chicken's actual position
+        // On subsequent moves, use the stage's current offset
+        const currentWorldOffset = wasMovingWorld
+          ? -stage.x
+          : chicken.x - fixedChickenX;
+
+        // Target world offset (where we want to be)
+        const targetWorldOffset = targetX - fixedChickenX;
+
+        console.log(
+          `🌍 Animating world from ${currentWorldOffset}px to ${targetWorldOffset}px over ${chicken.jumpDuration}s`,
+        );
+
+        // Pass world animation data to chicken
+        const worldAnimationData = {
+          stage: stage,
+          startOffset: currentWorldOffset,
+          endOffset: targetWorldOffset,
+          fixedViewportX: fixedChickenX,
+        };
+
+        // Chicken jumps with world movement animation
+        chicken.jumpTo(targetX, shouldMoveWorld, worldAnimationData);
+      } else {
+        // Fallback if stage not available
+        chicken.jumpTo(targetX, shouldMoveWorld);
+      }
+    } else {
+      // First three lanes (0, 1, 2): chicken moves normally without world movement
+      chicken.jumpTo(targetX, shouldMoveWorld);
+    }
+
+    currentLaneRef.current = nextLane;
+
+    return true;
+  }, [scrollContainerRef]);
+
   return {
     gameRef,
     entityManagerRef,
     chickenRef,
     isLoading,
+    jumpChicken,
   };
 }

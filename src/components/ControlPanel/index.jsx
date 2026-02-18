@@ -100,7 +100,7 @@ export function ControlPanel({
         <button
           className={`play-button ${isPlaying ? "go-button" : ""}`}
           onClick={onPlay}
-          disabled={isPlaying}
+          disabled={false}
         >
           {buttonText}
         </button>

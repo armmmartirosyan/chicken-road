@@ -17,6 +17,11 @@ export class EntityManager {
   setPixiRenderer(pixiRenderer) {
     this.pixiRenderer = pixiRenderer;
     this.stage = pixiRenderer ? pixiRenderer.getStage() : null;
+
+    // Enable sortable children for z-index support
+    if (this.stage) {
+      this.stage.sortableChildren = true;
+    }
   }
 
   /**
@@ -99,14 +104,14 @@ export class EntityManager {
               if (displayObject && displayObject.parent) {
                 try {
                   this.stage.removeChild(displayObject);
-                } catch (e) {
+                } catch {
                   // Display object might already be removed
                 }
               }
             }
             try {
               entity.destroy();
-            } catch (e) {
+            } catch {
               // Entity might already be destroyed
             }
           }
@@ -142,7 +147,7 @@ export class EntityManager {
         if (displayObject && displayObject.parent) {
           try {
             this.stage.removeChild(displayObject);
-          } catch (e) {
+          } catch {
             // Display object might already be removed
           }
         }
@@ -150,7 +155,7 @@ export class EntityManager {
 
       try {
         entity.destroy();
-      } catch (e) {
+      } catch {
         // Entity might already be destroyed
       }
     }
