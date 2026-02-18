@@ -145,7 +145,7 @@ export class CarSpawner {
         if (car.container.parent === stage) {
           stage.removeChild(car.container);
         }
-      } catch (e) {
+      } catch {
         // Container might already be removed
       }
     }
@@ -425,7 +425,7 @@ export class CarSpawner {
       if (car && car.container) {
         try {
           car.destroy();
-        } catch (e) {
+        } catch {
           // Car might already be destroyed
         }
       }
