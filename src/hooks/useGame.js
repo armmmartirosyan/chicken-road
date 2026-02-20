@@ -28,6 +28,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
   // Layout dimensions for canvas resizing
   const finishWidthRef = useRef(0); // Store finish scenery width
   const roadHeightRef = useRef(0); // Store road height
+  const canvasWidthRef = useRef(0); // Store total canvas width for clamping
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -114,6 +115,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // Store layout dimensions for later resizing
         finishWidthRef.current = finishWidth;
         roadHeightRef.current = roadHeight;
+        canvasWidthRef.current = totalWidth; // Store for world offset clamping
 
         // Update game renderer with new size
         game.resize(totalWidth, totalHeight);
@@ -316,6 +318,12 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       // Calculate world offset animation
       const stage = game.renderer?.app?.stage;
       if (stage) {
+        const containerWidth = container.clientWidth;
+        const canvasWidth = canvasWidthRef.current;
+
+        // Calculate maximum allowed world offset to prevent black space
+        const maxWorldOffset = Math.max(0, canvasWidth - containerWidth);
+
         // Current world offset (where we are now)
         // On first transition to world-move mode, calculate based on chicken's actual position
         // On subsequent moves, use the stage's current offset
@@ -323,11 +331,15 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           ? -stage.x
           : chicken.x - fixedChickenX;
 
-        // Target world offset (where we want to be)
-        const targetWorldOffset = targetX - fixedChickenX;
+        // Target world offset (where we want to be) - clamped to valid range
+        let targetWorldOffset = targetX - fixedChickenX;
+        targetWorldOffset = Math.max(
+          0,
+          Math.min(targetWorldOffset, maxWorldOffset),
+        );
 
         console.log(
-          `🌍 Animating world from ${currentWorldOffset}px to ${targetWorldOffset}px over ${chicken.jumpDuration}s`,
+          `🌍 Animating world from ${currentWorldOffset}px to ${targetWorldOffset}px (max: ${maxWorldOffset}px) over ${chicken.jumpDuration}s`,
         );
 
         // Pass world animation data to chicken
@@ -335,6 +347,7 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           stage: stage,
           startOffset: currentWorldOffset,
           endOffset: targetWorldOffset,
+          maxWorldOffset: maxWorldOffset,
           fixedViewportX: fixedChickenX,
         };
 
@@ -359,6 +372,14 @@ export function useGame(canvasRef, config, scrollContainerRef) {
     const game = gameRef.current;
     if (!game) return 1.0;
     return game.getCurrentMultiplier();
+  }, []);
+
+  // Finish current lane (turn current lane's coin to gold)
+  const finishCurrentLane = useCallback(() => {
+    const game = gameRef.current;
+    if (game) {
+      game.finishCurrentLane();
+    }
   }, []);
 
   // Update game difficulty dynamically
@@ -424,6 +445,8 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       const newTotalWidth = startWidth + newRoadWidth + finishWidth / 2;
       const newTotalHeight = roadHeight; // Height doesn't change
 
+      canvasWidthRef.current = newTotalWidth; // Update canvas width ref
+
       game.resize(newTotalWidth, newTotalHeight);
 
       // Force container to recalculate scroll bounds by triggering reflow
@@ -452,6 +475,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
     const chicken = chickenRef.current;
     if (!game || !chicken) return;
 
+    console.log("🔄 Resetting game to initial state");
+
+    // Reset game entities (coins, gates, etc.)
     game.resetGame();
 
     // Reset chicken to starting position
@@ -459,8 +485,66 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       const startX = lanePositionsRef.current[0];
       chicken.x = startX;
       chicken.container.position.x = startX;
+
+      // Reset Y position to ground level
+      chicken.container.position.y = chicken.jumpStartY;
+      chicken.y = chicken.jumpStartY;
+
       currentLaneRef.current = 0;
-      console.log("🐔 Chicken reset to starting position");
+
+      // Reset chicken jump state
+      chicken.isJumping = false;
+      chicken.jumpProgress = 0;
+      chicken.hasStartedJumpAnimation = false;
+
+      // Reset world movement state
+      chicken.shouldMoveWorld = false;
+      chicken.stage = null;
+      chicken.startWorldOffset = 0;
+      chicken.endWorldOffset = 0;
+      chicken.maxWorldOffset = 0;
+      chicken.fixedViewportX = null;
+
+      // Reset animation to idle
+      if (chicken.spine && chicken.spine.state) {
+        try {
+          const idleAnimations = ["idle", "idle_front", "stand"];
+          for (const anim of idleAnimations) {
+            try {
+              chicken.spine.state.setAnimation(0, anim, true);
+              chicken.currentAnimation = anim;
+              break;
+            } catch {
+              // Try next animation
+            }
+          }
+        } catch (e) {
+          console.warn("Could not reset chicken animation:", e);
+        }
+      }
+
+      console.log("🐔 Chicken reset to starting position: " + startX);
+    }
+
+    // Reset world position to eliminate extra space
+    const stage = game.renderer?.app?.stage;
+    if (stage) {
+      stage.x = 0;
+      console.log("🌍 World offset reset to 0");
+    }
+
+    // Reset scroll position
+    if (scrollContainerRef?.current) {
+      scrollContainerRef.current.scrollLeft = 0;
+      console.log("📜 Scroll position reset");
+    }
+  }, [scrollContainerRef]);
+
+  // Register collision callback
+  const registerCollisionCallback = useCallback((callback) => {
+    const game = gameRef.current;
+    if (game && game.carSpawner) {
+      game.carSpawner.onCollision = callback;
     }
   }, []);
 
@@ -471,7 +555,9 @@ export function useGame(canvasRef, config, scrollContainerRef) {
     isLoading,
     jumpChicken,
     getCurrentMultiplier,
+    finishCurrentLane,
     updateDifficulty,
     resetGame,
+    registerCollisionCallback,
   };
 }

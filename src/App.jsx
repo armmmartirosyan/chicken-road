@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import "./App.css";
 import { Header, GameArea, ControlPanel } from "./components";
 
@@ -10,15 +10,23 @@ export default function App() {
   const [score, setScore] = useState(0);
   const [jumpChickenFn, setJumpChickenFn] = useState(null);
   const [getCurrentMultiplierFn, setGetCurrentMultiplierFn] = useState(null);
+  const [finishCurrentLaneFn, setFinishCurrentLaneFn] = useState(null);
   const [resetGameFn, setResetGameFn] = useState(null);
+  const [registerCollisionCallbackFn, setRegisterCollisionCallbackFn] =
+    useState(null);
   const scrollContainerRef = useRef(null);
 
   // Handle when jump function is ready from game
-  const handleJumpReady = useCallback((jumpFn, getMultiplierFn, resetFn) => {
-    setJumpChickenFn(() => jumpFn);
-    setGetCurrentMultiplierFn(() => getMultiplierFn);
-    setResetGameFn(() => resetFn);
-  }, []);
+  const handleJumpReady = useCallback(
+    (jumpFn, getMultiplierFn, finishLaneFn, resetFn, registerCollisionFn) => {
+      setJumpChickenFn(() => jumpFn);
+      setGetCurrentMultiplierFn(() => getMultiplierFn);
+      setFinishCurrentLaneFn(() => finishLaneFn);
+      setResetGameFn(() => resetFn);
+      setRegisterCollisionCallbackFn(() => registerCollisionFn);
+    },
+    [],
+  );
 
   // Handle play/go button click
   const handlePlay = useCallback(() => {
@@ -54,7 +62,11 @@ export default function App() {
         if (success) {
           setScore((prev) => prev + 1);
         } else {
-          // Chicken reached the end - calculate winnings
+          // Chicken reached the end - turn current lane's coin to gold and calculate winnings
+          if (finishCurrentLaneFn) {
+            finishCurrentLaneFn();
+          }
+
           if (getCurrentMultiplierFn) {
             const multiplier = getCurrentMultiplierFn();
             const winnings = betAmount * multiplier;
@@ -76,12 +88,33 @@ export default function App() {
     balance,
     jumpChickenFn,
     getCurrentMultiplierFn,
+    finishCurrentLaneFn,
     resetGameFn,
   ]);
+
+  // Handle collision with car
+  const handleCollision = useCallback(() => {
+    if (gameState !== "playing") return;
+
+    console.log("☠️ Game Over - Car hit the chicken!");
+    setGameState("lost");
+  }, [gameState]);
+
+  // Register collision callback when game is ready
+  useEffect(() => {
+    if (registerCollisionCallbackFn) {
+      registerCollisionCallbackFn(handleCollision);
+    }
+  }, [registerCollisionCallbackFn, handleCollision]);
 
   // Handle cashout button click
   const handleCashout = useCallback(() => {
     if (gameState !== "playing") return;
+
+    // Turn current lane's coin to gold before cashing out
+    if (finishCurrentLaneFn) {
+      finishCurrentLaneFn();
+    }
 
     // Get current multiplier from game
     const multiplier = getCurrentMultiplierFn ? getCurrentMultiplierFn() : 1.0;
@@ -93,10 +126,24 @@ export default function App() {
     setBalance((prev) => prev + totalPayout);
     setGameState("won");
 
+    // Reset game after cashout
+    if (resetGameFn) {
+      setTimeout(() => {
+        resetGameFn();
+        console.log("🔄 Game reset after cashout");
+      }, 100);
+    }
+
     console.log(
       `💰 Cashed out! Multiplier: ${multiplier}x, Winnings: $${winnings.toFixed(2)}, Total Payout: $${totalPayout.toFixed(2)}`,
     );
-  }, [gameState, betAmount, getCurrentMultiplierFn]);
+  }, [
+    gameState,
+    betAmount,
+    getCurrentMultiplierFn,
+    finishCurrentLaneFn,
+    resetGameFn,
+  ]);
 
   return (
     <div className="app-container">

@@ -23,6 +23,29 @@ export function CanvasGameArea({
     }
   }, [scrollContainerRef]);
 
+  // Prevent all scrolling on the container
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const preventScroll = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    };
+
+    // Prevent all scroll events
+    container.addEventListener("wheel", preventScroll, { passive: false });
+    container.addEventListener("touchmove", preventScroll, { passive: false });
+    container.addEventListener("scroll", preventScroll, { passive: false });
+
+    return () => {
+      container.removeEventListener("wheel", preventScroll);
+      container.removeEventListener("touchmove", preventScroll);
+      container.removeEventListener("scroll", preventScroll);
+    };
+  }, []);
+
   // Initialize game with default configuration and difficulty
   // Memoize config to only change when difficulty changes
   const config = useMemo(
@@ -37,8 +60,10 @@ export function CanvasGameArea({
     isLoading,
     jumpChicken,
     getCurrentMultiplier,
+    finishCurrentLane,
     updateDifficulty,
     resetGame,
+    registerCollisionCallback,
   } = useGame(canvasRef, config, containerRef);
 
   // Handle difficulty changes
@@ -60,59 +85,24 @@ export function CanvasGameArea({
 
   // Notify parent when jump function is ready
   useEffect(() => {
-    if (!isLoading && jumpChicken && onJumpReady) {
-      onJumpReady(jumpChicken, getCurrentMultiplier, resetGame);
+    if (!isLoading && jumpChicken && onJumpReady && registerCollisionCallback) {
+      onJumpReady(
+        jumpChicken,
+        getCurrentMultiplier,
+        finishCurrentLane,
+        resetGame,
+        registerCollisionCallback,
+      );
     }
-  }, [isLoading, jumpChicken, getCurrentMultiplier, resetGame, onJumpReady]);
-
-  // Handle mouse drag scrolling directly on the container
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let isDragging = false;
-    let startX = 0;
-    let scrollLeft = 0;
-
-    const handleMouseDown = (e) => {
-      isDragging = true;
-      startX = e.pageX - container.offsetLeft;
-      scrollLeft = container.scrollLeft;
-      container.style.cursor = "grabbing";
-    };
-
-    const handleMouseMove = (e) => {
-      if (!isDragging) return;
-      e.preventDefault();
-      const x = e.pageX - container.offsetLeft;
-      const walk = (x - startX) * 1.5;
-      container.scrollLeft = scrollLeft - walk;
-    };
-
-    const handleMouseUp = () => {
-      isDragging = false;
-      container.style.cursor = "grab";
-    };
-
-    const handleMouseLeave = () => {
-      if (isDragging) {
-        isDragging = false;
-        container.style.cursor = "grab";
-      }
-    };
-
-    container.addEventListener("mousedown", handleMouseDown);
-    container.addEventListener("mousemove", handleMouseMove);
-    container.addEventListener("mouseup", handleMouseUp);
-    container.addEventListener("mouseleave", handleMouseLeave);
-
-    return () => {
-      container.removeEventListener("mousedown", handleMouseDown);
-      container.removeEventListener("mousemove", handleMouseMove);
-      container.removeEventListener("mouseup", handleMouseUp);
-      container.removeEventListener("mouseleave", handleMouseLeave);
-    };
-  }, []);
+  }, [
+    isLoading,
+    jumpChicken,
+    getCurrentMultiplier,
+    finishCurrentLane,
+    resetGame,
+    registerCollisionCallback,
+    onJumpReady,
+  ]);
 
   return (
     <div ref={containerRef} className="canvas-game-container">

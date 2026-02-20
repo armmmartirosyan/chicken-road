@@ -154,6 +154,15 @@ export class Game {
   }
 
   /**
+   * Finish current lane (turn current lane's coin to gold)
+   */
+  finishCurrentLane() {
+    if (this.coinManager) {
+      this.coinManager.finishCurrentLane();
+    }
+  }
+
+  /**
    * Set entity references for dynamic updates
    */
   setEntityReferences(road, finishScenery) {
@@ -266,7 +275,7 @@ export class Game {
     if (this.renderer && this.renderer.app && this.renderer.app.ticker) {
       try {
         this.renderer.app.ticker.remove(this.gameLoop, this);
-      } catch (e) {
+      } catch {
         // Ticker might already be destroyed
       }
     }

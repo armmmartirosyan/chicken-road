@@ -157,9 +157,12 @@ export class CoinManager {
   }
 
   /**
-   * Update coin visibility based on chicken position
+   * Update coin visibility and opacity based on chicken position
    */
   updateCoinVisibility() {
+    // Next available coin is currentLaneIndex + 1 (or 0 if not on road yet)
+    const nextAvailableCoin = this.currentLaneIndex + 1;
+
     for (let i = 0; i < this.coins.length; i++) {
       const coin = this.coins[i];
 
@@ -169,6 +172,23 @@ export class CoinManager {
         coin.setVisible(false);
       } else {
         coin.setVisible(true);
+
+        // Set opacity: next available coin = 1.0, all others = 0.7 (except gold coins)
+        if (coin.sprite) {
+          if (coin.isGold) {
+            // Gold coins always full opacity
+            coin.sprite.alpha = 1.0;
+            if (coin.text) coin.text.alpha = 1.0;
+          } else if (i === nextAvailableCoin) {
+            // Next available coin full opacity
+            coin.sprite.alpha = 1.0;
+            if (coin.text) coin.text.alpha = 1.0;
+          } else {
+            // All other silver coins reduced opacity
+            coin.sprite.alpha = 0.5;
+            if (coin.text) coin.text.alpha = 0.5;
+          }
+        }
       }
     }
   }
@@ -262,16 +282,41 @@ export class CoinManager {
   }
 
   /**
-   * Get the current coin multiplier (highest lane reached)
+   * Get the current coin multiplier (based on current lane position)
    */
   getCurrentMultiplier() {
-    if (
-      this.highestPassedLane >= 0 &&
-      this.highestPassedLane < this.coins.length
-    ) {
-      return this.coins[this.highestPassedLane].value;
+    // Use currentLaneIndex if chicken is on a valid lane, otherwise use highestPassedLane
+    const laneIndex =
+      this.currentLaneIndex >= 0
+        ? this.currentLaneIndex
+        : this.highestPassedLane;
+
+    if (laneIndex >= 0 && laneIndex < this.coins.length) {
+      return this.coins[laneIndex].value;
     }
     return 1.0; // Default multiplier if no coins passed
+  }
+
+  /**
+   * Turn current lane's coin to gold (called when game ends or cashout)
+   */
+  finishCurrentLane() {
+    if (
+      this.currentLaneIndex >= 0 &&
+      this.currentLaneIndex < this.coins.length
+    ) {
+      // Turn current lane's coin to gold
+      this.coins[this.currentLaneIndex].turnGold();
+
+      // Update highest passed lane to include current lane
+      if (this.currentLaneIndex > this.highestPassedLane) {
+        this.highestPassedLane = this.currentLaneIndex;
+      }
+
+      console.log(
+        `🪙 Finished lane ${this.currentLaneIndex}, coin turned gold`,
+      );
+    }
   }
 
   /**

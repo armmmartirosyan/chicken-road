@@ -360,6 +360,8 @@ export class CarSpawner {
     // Manually add to stage (don't use entityManager for pooled objects)
     if (this.entityManager && this.entityManager.stage && car.container) {
       try {
+        // Set car z-index higher than coins (coins are at 100)
+        car.container.zIndex = 150;
         this.entityManager.stage.addChild(car.container);
       } catch (e) {
         console.warn("Failed to add car to stage:", e);
@@ -381,6 +383,16 @@ export class CarSpawner {
       const car = this.activeCars[i];
       if (car && car.active) {
         car.update(deltaTime);
+
+        // Check collision with chicken
+        if (this.chicken && this.chicken.active && !this.chicken.isJumping) {
+          if (car.checkCollision(this.chicken)) {
+            console.log("🚗🐔 Car collision detected!");
+            if (this.onCollision) {
+              this.onCollision();
+            }
+          }
+        }
       }
     }
 

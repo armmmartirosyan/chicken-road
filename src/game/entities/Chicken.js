@@ -33,6 +33,7 @@ export class Chicken extends BaseEntity {
     this.shouldMoveWorld = false;
     this.startWorldOffset = 0;
     this.endWorldOffset = 0;
+    this.maxWorldOffset = 0; // Maximum allowed offset to prevent showing black space
     this.stage = null; // Reference to Pixi stage for world movement
     this.fixedViewportX = null; // Fixed X position in viewport during world movement
   }
@@ -180,14 +181,16 @@ export class Chicken extends BaseEntity {
       this.stage = worldAnimationData.stage;
       this.startWorldOffset = worldAnimationData.startOffset;
       this.endWorldOffset = worldAnimationData.endOffset;
+      this.maxWorldOffset = worldAnimationData.maxWorldOffset || Infinity;
       this.fixedViewportX = worldAnimationData.fixedViewportX;
       console.log(
-        `🌍 Preparing world animation from ${this.startWorldOffset} to ${this.endWorldOffset}`,
+        `🌍 Preparing world animation from ${this.startWorldOffset} to ${this.endWorldOffset} (max: ${this.maxWorldOffset})`,
       );
     } else {
       this.stage = null;
       this.startWorldOffset = 0;
       this.endWorldOffset = 0;
+      this.maxWorldOffset = 0;
       this.fixedViewportX = null;
     }
 
@@ -251,9 +254,14 @@ export class Chicken extends BaseEntity {
 
         // Finalize world position if animating
         if (this.shouldMoveWorld && this.stage) {
-          this.stage.x = -this.endWorldOffset;
+          // Clamp to valid range
+          const clampedOffset = Math.max(
+            0,
+            Math.min(this.endWorldOffset, this.maxWorldOffset),
+          );
+          this.stage.x = -clampedOffset;
           console.log(
-            `🌍 World animation complete at offset: ${-this.endWorldOffset}`,
+            `🌍 World animation complete at offset: ${-clampedOffset}`,
           );
         }
 
@@ -287,7 +295,12 @@ export class Chicken extends BaseEntity {
             const currentWorldOffset =
               this.startWorldOffset +
               (this.endWorldOffset - this.startWorldOffset) * easeProgress;
-            this.stage.x = -currentWorldOffset;
+            // Clamp to valid range to prevent black space
+            const clampedOffset = Math.max(
+              0,
+              Math.min(currentWorldOffset, this.maxWorldOffset),
+            );
+            this.stage.x = -clampedOffset;
           }
         }
 
