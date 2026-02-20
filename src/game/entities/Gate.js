@@ -42,10 +42,11 @@ export class Gate extends BaseEntity {
 
   /**
    * Get the Y position where cars should stop
+   * Note: Car class now handles stop offset internally
    */
   getStopY() {
-    // Cars should stop before the gate (at the top edge)
-    return this.y - this.height / 2 - 50; // 50px buffer before gate
+    // Return gate's Y position - Car.STOP_OFFSET is applied in Car class
+    return this.y;
   }
 
   /**

@@ -94,9 +94,6 @@ export class Road extends BaseEntity {
    * Update road with new lane count
    */
   updateLaneCount(newLaneCount) {
-    console.log(
-      `🛣️  Updating road from ${this.laneCount} to ${newLaneCount} lanes`,
-    );
     this.laneCount = newLaneCount;
     this.width = this.laneWidth * this.laneCount;
     this.drawRoad();

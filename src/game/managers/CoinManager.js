@@ -92,10 +92,6 @@ export class CoinManager {
     if (this.entityManager && this.entityManager.stage) {
       this.entityManager.stage.sortableChildren = true;
     }
-
-    console.log(
-      `✨ Created ${this.coins.length} coins at Y position: ${coinY}`,
-    );
   }
 
   /**
@@ -114,9 +110,6 @@ export class CoinManager {
       } else {
         // Chicken is not on the road (might be on start scenery)
         if (this.currentLaneIndex !== -1) {
-          console.log(
-            `🪙 Chicken left road, was on lane ${this.currentLaneIndex}`,
-          );
           this.currentLaneIndex = -1;
         }
       }
@@ -152,8 +145,6 @@ export class CoinManager {
       // Update highest passed lane
       this.highestPassedLane = oldLaneIndex;
     }
-
-    console.log(`🪙 Lane changed: ${oldLaneIndex} -> ${newLaneIndex}`);
   }
 
   /**
@@ -210,8 +201,6 @@ export class CoinManager {
    * Update difficulty and recreate coins
    */
   updateDifficulty(newDifficulty) {
-    console.log(`🔄 Updating difficulty to ${newDifficulty}...`);
-
     // Validate that we have all required dependencies
     if (!this.entityManager || !this.road || !this.chicken) {
       console.warn("Cannot update difficulty: missing dependencies");
@@ -275,10 +264,6 @@ export class CoinManager {
     } catch (error) {
       console.error("Error updating coin visibility:", error);
     }
-
-    console.log(
-      `✅ Updated coins for ${newDifficulty} difficulty (preserved state: lane ${savedCurrentLane}, passed ${savedHighestPassedLane})`,
-    );
   }
 
   /**
@@ -312,10 +297,6 @@ export class CoinManager {
       if (this.currentLaneIndex > this.highestPassedLane) {
         this.highestPassedLane = this.currentLaneIndex;
       }
-
-      console.log(
-        `🪙 Finished lane ${this.currentLaneIndex}, coin turned gold`,
-      );
     }
   }
 

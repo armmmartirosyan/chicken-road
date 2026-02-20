@@ -69,10 +69,6 @@ export function CanvasGameArea({
   // Handle difficulty changes
   useEffect(() => {
     if (previousDifficultyRef.current !== difficulty) {
-      console.log(
-        `🔄 Difficulty changed from ${previousDifficultyRef.current} to ${difficulty}`,
-      );
-
       // Update difficulty in the game if it's not the initial load
       if (previousDifficultyRef.current && updateDifficulty) {
         const newConfig = getDefaultConfig(difficulty);

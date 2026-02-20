@@ -107,7 +107,8 @@ export class Game {
    * Main game loop - called by Pixi ticker
    */
   gameLoop(ticker) {
-    if (this.state !== "playing") return;
+    // Allow updates during gameover state for death animation
+    if (this.state !== "playing" && this.state !== "gameover") return;
 
     // Delta time in seconds (Pixi ticker provides delta in frames, convert to seconds)
     const deltaTime = ticker.deltaTime / 60; // 60 FPS baseline
@@ -120,26 +121,75 @@ export class Game {
    * Update game logic
    */
   update(deltaTime) {
-    if (this.state !== "playing") return;
+    // Allow entity updates during gameover for animation
+    if (this.state !== "playing" && this.state !== "gameover") return;
 
-    // Update all entities
+    // Update all entities (for animations)
     if (this.entityManager) {
       this.entityManager.update(deltaTime);
     }
 
-    // Update car spawner
-    if (this.carSpawner) {
-      this.carSpawner.update(deltaTime);
+    // Only update game systems if playing (not during death animation)
+    if (this.state === "playing") {
+      // Update car spawner
+      if (this.carSpawner) {
+        this.carSpawner.update(deltaTime);
+      }
+
+      // Update coin manager
+      if (this.coinManager) {
+        this.coinManager.update(deltaTime);
+      }
+
+      // Update gate manager
+      if (this.gateManager) {
+        this.gateManager.update(deltaTime);
+      }
+    }
+  }
+
+  /**
+   * Handle chicken death sequence with timing
+   * REQUIREMENT: Proper sequence timing
+   *   1. Collision detected -> set state to "gameover" (halt game systems)
+   *   2. Play death animation and wait for completion
+   *   3. Add 1-second visual buffer
+   *   4. Trigger reset callback (cleanup and restore state)
+   *
+   * @param {Function} onComplete - Callback to execute after full death sequence
+   * @returns {Promise} - Resolves when death sequence is complete
+   */
+  async handleChickenDeath(onComplete) {
+    // REQUIREMENT: Set state to gameover to halt all game systems and prevent input
+    // This is the internal game state - App.jsx gameState is managed separately
+    this.state = "gameover";
+
+    // Find chicken entity (look for entity with playDeath method)
+    const chicken = this.entityManager
+      ? this.entityManager.entities.find(
+          (e) => e.playDeath && typeof e.playDeath === "function",
+        )
+      : null;
+
+    if (!chicken) {
+      console.warn("Chicken entity not found for death animation");
+      if (onComplete) onComplete();
+      return;
     }
 
-    // Update coin manager
-    if (this.coinManager) {
-      this.coinManager.update(deltaTime);
-    }
+    // REQUIREMENT: Play death animation and wait for completion
+    await new Promise((resolve) => {
+      chicken.playDeath(() => {
+        resolve();
+      });
+    });
 
-    // Update gate manager
-    if (this.gateManager) {
-      this.gateManager.update(deltaTime);
+    // REQUIREMENT: 1-second buffer delay for visual beat
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Trigger reset callback
+    if (onComplete) {
+      onComplete();
     }
   }
 
@@ -179,47 +229,32 @@ export class Game {
       return;
     }
 
-    console.log(
-      `🔄 Updating difficulty to ${newDifficulty} with ${newConfig.laneCount} lanes`,
-    );
-
     try {
       // 1. Update road lane count
       if (this.road) {
         this.road.updateLaneCount(newConfig.laneCount);
-        console.log(`✅ Road updated to ${newConfig.laneCount} lanes`);
       }
 
       // 2. Update finish scenery position
       if (this.finishScenery && startWidth !== undefined) {
         const newRoadWidth = newConfig.laneWidth * newConfig.laneCount;
         this.finishScenery.x = startWidth + newRoadWidth;
-        console.log(
-          `✅ Finish scenery repositioned to x=${this.finishScenery.x}`,
-        );
       }
 
       // 3. Update car spawner lanes
       if (this.carSpawner && this.road) {
         this.carSpawner.updateLaneCount(this.road);
-        console.log(`✅ Car spawner updated with new lanes`);
       }
 
       // 4. Clear and reset gate manager
       if (this.gateManager) {
         this.gateManager.destroy();
-        console.log(`✅ Gates cleared`);
       }
 
       // 5. Update coin manager
       if (this.coinManager) {
         this.coinManager.updateDifficulty(newDifficulty);
-        console.log(`✅ Coins updated for ${newDifficulty} difficulty`);
       }
-
-      console.log(
-        `✅ Difficulty successfully updated to ${newDifficulty} with ${newConfig.laneCount} lanes`,
-      );
     } catch (error) {
       console.error("Error updating difficulty:", error);
     }
@@ -233,6 +268,9 @@ export class Game {
       console.warn("Cannot reset game: game not initialized");
       return;
     }
+
+    // Reset game state
+    this.state = "playing";
 
     // Reset coin manager
     if (this.coinManager) {
@@ -252,7 +290,14 @@ export class Game {
       }
     }
 
-    console.log("🔄 Game reset to initial state");
+    // Reset car spawner - REQUIREMENT: Remove all active cars and reset state
+    if (this.carSpawner) {
+      try {
+        this.carSpawner.reset();
+      } catch (error) {
+        console.error("Error resetting car spawner:", error);
+      }
+    }
   }
 
   /**

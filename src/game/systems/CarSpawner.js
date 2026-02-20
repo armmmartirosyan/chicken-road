@@ -1,4 +1,5 @@
 import { Car } from "../entities/Car.js";
+import { Graphics } from "pixi.js";
 
 /**
  * CarSpawner - Manages car spawning and object pooling
@@ -8,27 +9,27 @@ export class CarSpawner {
   constructor(config) {
     this.config = config;
     this.entityManager = null;
-    this.pixiRenderer = null; // Use Pixi renderer instead of AssetManager
+    this.pixiRenderer = null;
     this.road = null;
-    this.chicken = null; // Reference to chicken for smart spawning
-    this.containerElement = null; // For viewport detection
-    this.gateManager = null; // Reference to gate manager for blocking cars
+    this.chicken = null;
+    this.containerElement = null;
+    this.gateManager = null;
 
     // Object pool for cars
     this.carPool = [];
     this.activeCars = [];
-    this.poolSize = 30; // Increased pool size for more cars
+    this.poolSize = 30;
 
-    // Spawn timing - faster and more random
+    // Spawn timing
     this.spawnTimer = 0;
-    this.minSpawnInterval = 0.3; // Much faster spawning
-    this.maxSpawnInterval = 1.2; // More frequent cars
+    this.minSpawnInterval = 0.3;
+    this.maxSpawnInterval = 1.2;
     this.nextSpawnTime = this.getRandomSpawnInterval();
 
     // Lane configuration
     this.lanes = [];
-    this.laneCooldowns = new Map(); // Track cooldown per lane (lane index -> timestamp)
-    this.cooldownDuration = 3.0; // 3 seconds cooldown after car leaves lane
+    this.laneCooldowns = new Map();
+    this.cooldownDuration = 3.0;
     this.startX = 0;
     this.roadWidth = 0;
     this.roadY = 0;
@@ -43,13 +44,25 @@ export class CarSpawner {
       { type: "car-police", weight: 0.2, imageKey: "car-police" },
     ];
 
-    // Speed variation (pixels per second) - much faster vertical movement
-    this.minSpeed = 200; // Significantly faster
-    this.maxSpeed = 450; // Much faster max speed
+    // Speed variation
+    this.minSpeed = 200;
+    this.maxSpeed = 450;
 
-    // Cleanup optimization - throttle checks to reduce flickering
+    // Cleanup optimization
     this.cleanupFrameCounter = 0;
-    this.cleanupInterval = 10; // Check every 10 frames instead of every frame
+    this.cleanupInterval = 10;
+
+    // Collision handling
+    this.hasCollided = false;
+    this.onCollision = null;
+
+    // Track chicken's current lane for dynamic safe zone
+    this.chickenLaneIndex = 0;
+    this.initialSpawnComplete = false;
+
+    // Debug visualization
+    this.debugEnabled = true; // Toggle debug rendering
+    this.debugGraphics = null; // Graphics object for debug rendering
   }
 
   /**
@@ -69,6 +82,13 @@ export class CarSpawner {
     this.chicken = chicken; // Store chicken reference for smart spawning
     this.containerElement = containerElement; // For viewport detection
     this.gateManager = gateManager; // Store gate manager reference for car blocking
+
+    // Initialize debug graphics
+    if (this.debugEnabled && this.entityManager && this.entityManager.stage) {
+      this.debugGraphics = new Graphics();
+      this.debugGraphics.zIndex = 10000; // Render on top of everything
+      this.entityManager.stage.addChild(this.debugGraphics);
+    }
 
     // Calculate lane positions and road boundaries
     this.startX = road.x;
@@ -103,10 +123,6 @@ export class CarSpawner {
    * Update lane count when difficulty changes
    */
   updateLaneCount(road) {
-    console.log(
-      `🔄 CarSpawner updating lanes from ${this.lanes.length} to ${road.laneCount}`,
-    );
-
     // Clear existing lanes
     this.lanes.length = 0;
 
@@ -118,8 +134,6 @@ export class CarSpawner {
 
     // Recalculate lanes
     this.setupLanes();
-
-    console.log(`✅ CarSpawner now has ${this.lanes.length} lanes configured`);
   }
 
   /**
@@ -159,6 +173,7 @@ export class CarSpawner {
 
   /**
    * Release car back to pool (don't destroy - reuse)
+   * ENHANCED: Force removal from stage with logging
    */
   releaseCar(car) {
     // Hide car but keep container for pooling
@@ -170,15 +185,21 @@ export class CarSpawner {
       this.activeCars.splice(index, 1);
     }
 
-    // Remove from stage (but don't destroy container)
+    // CRITICAL: Remove from stage (but don't destroy container for reuse)
     if (this.entityManager && this.entityManager.stage && car.container) {
       try {
         const stage = this.entityManager.stage;
         if (car.container.parent === stage) {
           stage.removeChild(car.container);
+          // Verify removal
+          if (car.container.parent === stage) {
+            console.warn(
+              "⚠️ Car container still on stage after removal attempt!",
+            );
+          }
         }
-      } catch {
-        // Container might already be removed
+      } catch (e) {
+        console.warn("Error removing car from stage:", e);
       }
     }
   }
@@ -217,42 +238,51 @@ export class CarSpawner {
    * Spawn a car in a lane near the chicken (next 5 lanes ahead)
    */
   spawnCar() {
-    // Don't spawn if not properly initialized
     if (!this.entityManager || !this.pixiRenderer || this.lanes.length === 0) {
       return;
     }
 
-    if (!this.chicken) {
-      // Fallback to random lane if chicken not available
-      this.spawnCarInLane(Math.floor(Math.random() * this.lanes.length));
-      return;
+    // Get valid spawn lanes (exclude chicken's lane and all lanes behind it)
+    const validLanes = this.getValidSpawnLanes();
+
+    if (validLanes.length === 0) {
+      return; // No valid lanes to spawn
     }
 
-    // Calculate chicken's current lane
-    const chickenLaneX = this.chicken.x - this.startX;
-    const chickenLaneIndex = Math.floor(chickenLaneX / this.laneWidth);
-
-    // Spawn in next 5 lanes ahead (in direction chicken is facing)
-    // Since chicken moves right, spawn ahead on the road
-    const minLane = Math.max(0, chickenLaneIndex);
-    const maxLane = Math.min(this.lanes.length - 1, chickenLaneIndex + 5);
-
-    // Prefer lanes closer to chicken (weighted randomization)
-    let targetLane;
-    const rand = Math.random();
-    if (rand < 0.5) {
-      // 50% chance: spawn in next 2 lanes
-      targetLane =
-        minLane +
-        Math.floor(Math.random() * Math.min(2, maxLane - minLane + 1));
-    } else {
-      // 50% chance: spawn in next 3-5 lanes
-      targetLane =
-        minLane + Math.floor(Math.random() * (maxLane - minLane + 1));
-    }
-
-    targetLane = Math.max(minLane, Math.min(maxLane, targetLane));
+    // Select random lane from valid lanes
+    const targetLane =
+      validLanes[Math.floor(Math.random() * validLanes.length)];
     this.spawnCarInLane(targetLane);
+  }
+
+  /**
+   * Get valid spawn lanes based on chicken's position
+   * REQUIREMENT: Exclude chicken's current lane (N) and all lanes behind it (0 to N-1)
+   * Only spawn on lanes ahead (N+1, N+2, ...)
+   */
+  getValidSpawnLanes() {
+    if (!this.chicken) {
+      // If no chicken reference, spawn on all lanes
+      return this.lanes.map((lane) => lane.index);
+    }
+
+    // Calculate chicken's current lane index
+    const chickenLaneX = this.chicken.x - this.startX;
+    this.chickenLaneIndex = Math.max(
+      0,
+      Math.floor(chickenLaneX / this.laneWidth),
+    );
+
+    const validLanes = [];
+
+    for (let i = 0; i < this.lanes.length; i++) {
+      // REQUIREMENT: Only spawn on lanes ahead of chicken (exclude current lane and all behind it)
+      if (i > this.chickenLaneIndex) {
+        validLanes.push(i);
+      }
+    }
+
+    return validLanes;
   }
 
   /**
@@ -373,46 +403,62 @@ export class CarSpawner {
    * Update spawner (optimized)
    */
   update(deltaTime) {
-    // Don't spawn if not properly initialized
     if (!this.entityManager || !this.pixiRenderer || !this.road) {
       return;
     }
 
-    // Update all active cars
+    // Clear debug graphics from previous frame
+    if (this.debugGraphics) {
+      this.debugGraphics.clear();
+    }
+
+    // Initial spawn: spawn cars on all lanes at the start of the game
+    if (!this.initialSpawnComplete && this.lanes.length > 0) {
+      for (let i = 0; i < this.lanes.length; i++) {
+        // Spawn with some randomness to avoid all cars appearing at once
+        if (Math.random() < 0.4) {
+          this.spawnCarInLane(i);
+        }
+      }
+      this.initialSpawnComplete = true;
+    }
+
+    // Update all active cars and check collision
+    // REQUIREMENT: Cars continue moving after collision - only collision checking is disabled
     for (let i = 0; i < this.activeCars.length; i++) {
       const car = this.activeCars[i];
       if (car && car.active) {
+        // Update gate reference dynamically (gates can be placed after car spawns)
+        car.gate = this.gateManager
+          ? this.gateManager.getGateForLane(car.lane)
+          : null;
+
+        // REQUIREMENT: Car continues moving normally (even after collision)
         car.update(deltaTime);
 
-        // Check collision with chicken
-        if (this.chicken && this.chicken.active && !this.chicken.isJumping) {
-          if (car.checkCollision(this.chicken)) {
-            console.log("🚗🐔 Car collision detected!");
-            if (this.onCollision) {
-              this.onCollision();
-            }
-          }
+        // REQUIREMENT: Check collision ONLY if collision hasn't occurred yet
+        // This prevents multiple collision triggers while allowing cars to continue moving
+        if (!this.hasCollided) {
+          this.checkCarChickenCollision(car);
         }
       }
     }
 
-    // Update spawn timer
+    // Update spawn timer for continuous spawning
     this.spawnTimer += deltaTime;
 
-    // Check if it's time to spawn
     if (this.spawnTimer >= this.nextSpawnTime) {
       this.spawnCar();
       this.spawnTimer = 0;
       this.nextSpawnTime = this.getRandomSpawnInterval();
     }
 
-    // Throttled cleanup - only check every N frames to reduce flickering
+    // Throttled cleanup
     this.cleanupFrameCounter++;
 
     if (this.cleanupFrameCounter >= this.cleanupInterval) {
       this.cleanupFrameCounter = 0;
 
-      // Viewport-based cleanup - only remove cars far outside viewport
       if (this.containerElement) {
         const scrollX = this.containerElement.scrollLeft || 0;
         const scrollY = this.containerElement.scrollTop || 0;
@@ -422,25 +468,180 @@ export class CarSpawner {
         for (let i = this.activeCars.length - 1; i >= 0; i--) {
           const car = this.activeCars[i];
 
-          // Remove if not in viewport (with buffer)
           if (
             !car.active ||
             !car.isInViewport(scrollX, scrollY, viewportWidth, viewportHeight)
           ) {
-            // Don't call entityManager.removeEntity - we're pooling
             this.releaseCar(car);
           }
         }
       } else {
-        // Fallback cleanup if no container element
         for (let i = this.activeCars.length - 1; i >= 0; i--) {
           const car = this.activeCars[i];
           if (car.isOffscreen || !car.active) {
-            // Don't call entityManager.removeEntity - we're pooling
             this.releaseCar(car);
           }
         }
       }
+    }
+  }
+
+  /**
+   * Check collision between car and chicken using precise AABB logic
+   * REQUIREMENTS:
+   * 1. Car and chicken must be on the same lane
+   * 2. Precise AABB: Car's front edge >= chicken's top edge AND car's back edge <= chicken's bottom edge
+   * 3. Gate Bypass: If car has passed gate (front >= gate.y), collision is ACTIVE
+   * 4. Only check for cars on chicken's current lane (efficiency)
+   */
+  checkCarChickenCollision(car) {
+    if (!this.chicken || !this.chicken.active || this.chicken.isJumping) {
+      return;
+    }
+
+    // Calculate chicken's current lane
+    const chickenLaneX = this.chicken.x - this.startX;
+    const chickenLaneIndex = Math.floor(chickenLaneX / this.laneWidth);
+
+    // REQUIREMENT 1 & 4: Only check collision if car and chicken are on the same lane
+    if (car.lane !== chickenLaneIndex) {
+      return;
+    }
+
+    // CRITICAL FIX: Use PixiJS World Space bounds to avoid coordinate mismatch
+    // Get actual rendered bounds from PixiJS containers (World Space coordinates)
+    const carWorldBounds = car.container.getBounds();
+    const chickenWorldBounds = this.chicken.container.getBounds();
+
+    // REQUIREMENT 3: Gate Bypass Logic
+    // Check if car has passed the gate's "point of no return"
+    let collisionEnabled = true;
+    if (this.gateManager && this.gateManager.hasGateOnLane(car.lane)) {
+      const gate = this.gateManager.getGateForLane(car.lane);
+      if (gate && gate.active) {
+        // Car moves downward: Front = Bottom edge
+        const carFrontY = carWorldBounds.y + carWorldBounds.height;
+        const gateY = gate.y;
+
+        // If car's front has NOT passed the gate, collision is DISABLED (gate blocks)
+        // If car's front HAS passed the gate, collision is ENABLED (point of no return)
+        if (carFrontY < gateY) {
+          collisionEnabled = false;
+        }
+      }
+    }
+
+    if (!collisionEnabled) {
+      return; // Gate is blocking, skip collision check
+    }
+
+    // REQUIREMENT 2: Precise AABB collision detection (World Space)
+    // Define edges based on direction:
+    // Car moves downward: Front = Bottom, Back = Top
+    const carFrontEdge = carWorldBounds.y + carWorldBounds.height; // Bottom of car
+    const carBackEdge = carWorldBounds.y; // Top of car
+
+    // Chicken bounds
+    const chickenTopEdge = chickenWorldBounds.y;
+    const chickenBottomEdge = chickenWorldBounds.y + chickenWorldBounds.height;
+
+    // Horizontal overlap check (X-axis)
+    const overlapsX =
+      carWorldBounds.x < chickenWorldBounds.x + chickenWorldBounds.width &&
+      carWorldBounds.x + carWorldBounds.width > chickenWorldBounds.x;
+
+    // REQUIREMENT: Precise vertical alignment (Y-axis)
+    // Vertical Alignment: car's front edge >= chicken's top edge
+    const verticalAlignment = carFrontEdge >= chickenTopEdge;
+
+    // Depth Alignment: car's back edge <= chicken's bottom edge
+    const depthAlignment = carBackEdge <= chickenBottomEdge;
+
+    // Collision occurs only if ALL conditions are met
+    if (overlapsX && verticalAlignment && depthAlignment) {
+      console.log("💥 COLLISION DETECTED!");
+
+      // REQUIREMENT: Set collision flag to prevent multiple triggers
+      // NOTE: The car that caused collision continues moving (not stopped)
+      this.hasCollided = true;
+
+      if (this.onCollision) {
+        this.onCollision();
+      }
+    }
+
+    // Draw debug visualization
+    if (this.debugEnabled) {
+      this.drawDebugBounds(
+        carWorldBounds,
+        chickenWorldBounds,
+        overlapsX && verticalAlignment && depthAlignment,
+      );
+    }
+  }
+
+  /**
+   * Draw debug visualization boxes around car and chicken
+   * RED box = Car collision area
+   * GREEN box = Chicken hitbox
+   * YELLOW box = Collision detected
+   */
+  drawDebugBounds(carBounds, chickenBounds, isColliding) {
+    if (!this.debugGraphics) return;
+
+    // Clear previous frame's debug graphics
+    this.debugGraphics.clear();
+
+    // Draw car collision area (RED when no collision, YELLOW when colliding)
+    // PixiJS v8: Updated from lineStyle() to setStrokeStyle() and drawRect() to rect()
+    this.debugGraphics.setStrokeStyle({
+      width: 3,
+      color: isColliding ? 0xffff00 : 0xff0000,
+    });
+    this.debugGraphics.rect(
+      carBounds.x,
+      carBounds.y,
+      carBounds.width,
+      carBounds.height,
+    );
+    this.debugGraphics.stroke();
+
+    // Draw chicken hitbox (GREEN)
+    this.debugGraphics.setStrokeStyle({ width: 3, color: 0x00ff00 });
+    this.debugGraphics.rect(
+      chickenBounds.x,
+      chickenBounds.y,
+      chickenBounds.width,
+      chickenBounds.height,
+    );
+    this.debugGraphics.stroke();
+
+    // Mark collision point if detected
+    if (isColliding) {
+      // Draw X at center of overlap
+      const overlapCenterX =
+        (Math.max(carBounds.x, chickenBounds.x) +
+          Math.min(
+            carBounds.x + carBounds.width,
+            chickenBounds.x + chickenBounds.width,
+          )) /
+        2;
+      const overlapCenterY =
+        (Math.max(carBounds.y, chickenBounds.y) +
+          Math.min(
+            carBounds.y + carBounds.height,
+            chickenBounds.y + chickenBounds.height,
+          )) /
+        2;
+
+      // Draw X mark at collision point (PixiJS v8 updated API)
+      this.debugGraphics.setStrokeStyle({ width: 5, color: 0xff00ff });
+      this.debugGraphics.moveTo(overlapCenterX - 20, overlapCenterY - 20);
+      this.debugGraphics.lineTo(overlapCenterX + 20, overlapCenterY + 20);
+      this.debugGraphics.stroke();
+      this.debugGraphics.moveTo(overlapCenterX + 20, overlapCenterY - 20);
+      this.debugGraphics.lineTo(overlapCenterX - 20, overlapCenterY + 20);
+      this.debugGraphics.stroke();
     }
   }
 
@@ -464,10 +665,81 @@ export class CarSpawner {
   }
 
   /**
+   * Reset spawner state (for new game)
+   * EMERGENCY FIX: Aggressive stage wipe with synchronous removal
+   * CRITICAL: This must completely clear the stage before chicken resets
+   */
+  reset() {
+    console.log("🔄 CarSpawner.reset() - Starting aggressive stage wipe");
+    console.log(`   Active cars before wipe: ${this.activeCars.length}`);
+
+    // STEP 1: Stop collision checking IMMEDIATELY
+    this.hasCollided = false;
+
+    // STEP 2: AGGRESSIVE STAGE CLEANUP - Force removal of ALL cars
+    const stage = this.entityManager?.stage;
+    let removedCount = 0;
+
+    // Clone array to avoid modification during iteration
+    const carsToRemove = [...this.activeCars];
+
+    for (const car of carsToRemove) {
+      if (!car) continue;
+
+      // Force hide immediately
+      car.visible = false;
+      car.active = false;
+      car.inUse = false;
+
+      if (car.container) {
+        car.container.visible = false;
+
+        // CRITICAL: Force remove from stage if it's there
+        if (stage && car.container.parent === stage) {
+          try {
+            stage.removeChild(car.container);
+            removedCount++;
+          } catch (e) {
+            console.warn("Failed to remove car from stage:", e);
+          }
+        }
+      }
+
+      // Release car back to pool
+      car.release();
+    }
+
+    // Clear the activeCars array completely
+    this.activeCars.length = 0;
+
+    console.log(`   ✅ Removed ${removedCount} cars from stage`);
+    console.log(`   ✅ Active cars after wipe: ${this.activeCars.length}`);
+
+    // STEP 3: Clear timers to prevent immediate spawn
+    this.spawnTimer = 0;
+    this.nextSpawnTime = this.getRandomSpawnInterval();
+
+    // STEP 4: Reset spawn flags
+    this.initialSpawnComplete = false;
+
+    // STEP 5: Clear lane cooldowns
+    this.laneCooldowns.clear();
+
+    // STEP 6: Clear debug graphics
+    if (this.debugGraphics) {
+      this.debugGraphics.clear();
+    }
+
+    console.log(
+      "✅ CarSpawner.reset() - Stage wipe COMPLETE, ready for new game",
+    );
+  }
+
+  /**
    * Clean up all cars
    */
   cleanup() {
-    // Release all active cars back to pool (don't destroy)
+    // Release all active cars back to pool
     for (const car of this.activeCars) {
       if (car) {
         this.releaseCar(car);
@@ -475,7 +747,7 @@ export class CarSpawner {
     }
     this.activeCars = [];
 
-    // Now destroy all pooled cars since we're shutting down
+    // Destroy all pooled cars since we're shutting down
     for (const car of this.carPool) {
       if (car && car.container) {
         try {
@@ -486,5 +758,11 @@ export class CarSpawner {
       }
     }
     this.carPool = [];
+
+    // Cleanup debug graphics
+    if (this.debugGraphics) {
+      this.debugGraphics.destroy();
+      this.debugGraphics = null;
+    }
   }
 }

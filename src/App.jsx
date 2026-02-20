@@ -30,15 +30,21 @@ export default function App() {
 
   // Handle play/go button click
   const handlePlay = useCallback(() => {
-    if (gameState === "idle" || gameState === "won" || gameState === "lost") {
+    // REQUIREMENT: Block input during death sequence (when gameState is "lost")
+    // Input is restored when handleResetComplete() is called after death sequence
+    if (gameState === "lost") {
+      return; // Block all input during death/reset - will be restored by handleResetComplete
+    }
+
+    if (gameState === "idle" || gameState === "won") {
       // Start new game
       if (balance < betAmount) {
         alert("Insufficient balance!");
         return;
       }
 
-      // Reset game if coming from won/lost state
-      if ((gameState === "won" || gameState === "lost") && resetGameFn) {
+      // Reset game if coming from won state
+      if (gameState === "won" && resetGameFn) {
         resetGameFn();
       }
 
@@ -56,7 +62,7 @@ export default function App() {
         }, 100); // Small delay to ensure game state is updated
       }
     } else if (gameState === "playing") {
-      // Jump chicken
+      // Jump chicken (only when playing)
       if (jumpChickenFn) {
         const success = jumpChickenFn();
         if (success) {
@@ -74,10 +80,6 @@ export default function App() {
 
             setBalance((prev) => prev + totalPayout);
             setGameState("won");
-
-            console.log(
-              `🎉 Game Won! Multiplier: ${multiplier}x, Winnings: $${winnings.toFixed(2)}, Total Payout: $${totalPayout.toFixed(2)}`,
-            );
           }
         }
       }
@@ -93,19 +95,39 @@ export default function App() {
   ]);
 
   // Handle collision with car
+  // REQUIREMENT: Set gameState to "lost" to lock input during death sequence
+  // Death animation, timing, and reset are handled by game logic (decoupled)
   const handleCollision = useCallback(() => {
     if (gameState !== "playing") return;
 
-    console.log("☠️ Game Over - Car hit the chicken!");
+    console.log("💥 Collision detected - Setting gameState to 'lost'");
+
+    // REQUIREMENT: Set state to "lost" to immediately lock user input
     setGameState("lost");
+
+    // REQUIREMENT: Reset score (current run's "Golds") - NOT permanent balance/possessions
+    setScore(0);
+
+    // Note: Death sequence (animation + delay + reset) is handled in game logic
+    // After reset completes, game will call onResetComplete to restore state
   }, [gameState]);
+
+  // Handle reset complete - restore game state after death sequence
+  const handleResetComplete = useCallback(() => {
+    console.log(
+      "🔄 handleResetComplete called - Restoring gameState to 'playing'",
+    );
+    // REQUIREMENT: Re-enable input by setting gameState back to "playing"
+    setGameState("playing");
+    console.log("✅ UI state restored - Game ready for new play");
+  }, []);
 
   // Register collision callback when game is ready
   useEffect(() => {
     if (registerCollisionCallbackFn) {
-      registerCollisionCallbackFn(handleCollision);
+      registerCollisionCallbackFn(handleCollision, handleResetComplete);
     }
-  }, [registerCollisionCallbackFn, handleCollision]);
+  }, [registerCollisionCallbackFn, handleCollision, handleResetComplete]);
 
   // Handle cashout button click
   const handleCashout = useCallback(() => {
@@ -130,13 +152,8 @@ export default function App() {
     if (resetGameFn) {
       setTimeout(() => {
         resetGameFn();
-        console.log("🔄 Game reset after cashout");
       }, 100);
     }
-
-    console.log(
-      `💰 Cashed out! Multiplier: ${multiplier}x, Winnings: $${winnings.toFixed(2)}, Total Payout: $${totalPayout.toFixed(2)}`,
-    );
   }, [
     gameState,
     betAmount,

@@ -44,18 +44,11 @@ export class PixiRenderer {
 
     // Check if app was destroyed during async init (race condition)
     if (!this.app) {
-      console.log("PixiRenderer was destroyed during initialization");
       return;
     }
 
     this.stage = this.app.stage;
     this.initialized = true;
-
-    console.log("✅ Pixi.js WebGL renderer initialized");
-    console.log(`   Resolution: ${this.config.resolution}x`);
-    console.log(
-      `   WebGL: ${this.app.renderer.type === 1 ? "Yes" : "Canvas fallback"}`,
-    );
   }
 
   /**
@@ -113,7 +106,6 @@ export class PixiRenderer {
     try {
       const allKeys = assets.map((a) => a.key);
       const textures = await Assets.load(allKeys);
-      console.log(`✅ Loaded ${Object.keys(textures).length} textures`);
       return textures;
     } catch (error) {
       console.error("Failed to load textures:", error);
@@ -134,15 +126,12 @@ export class PixiRenderer {
    */
   async loadSpineAnimation(key, jsonUrl, atlasUrl) {
     try {
-      console.log(`Loading Spine animation: ${key}`);
-
       // Load atlas and skeleton separately as required by spine-pixi-v8
       Assets.add({ alias: `${key}_atlas`, src: atlasUrl });
       Assets.add({ alias: `${key}_skeleton`, src: jsonUrl });
 
       await Assets.load([`${key}_atlas`, `${key}_skeleton`]);
 
-      console.log(`✅ Loaded Spine animation files for: ${key}`);
       return { skeleton: `${key}_skeleton`, atlas: `${key}_atlas` };
     } catch (error) {
       console.error(`Failed to load Spine animation ${key}:`, error);
@@ -155,12 +144,9 @@ export class PixiRenderer {
    */
   createSpine(assetKeys) {
     try {
-      console.log(`Creating Spine instance from:`, assetKeys);
-
       // Create Spine instance - spine-pixi-v8 format
       // Expects { skeleton: 'skeleton-key', atlas: 'atlas-key' }
       const spine = Spine.from(assetKeys);
-      console.log(`✅ Created Spine instance`);
 
       return spine;
     } catch (error) {

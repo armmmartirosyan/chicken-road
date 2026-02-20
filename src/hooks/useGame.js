@@ -60,7 +60,6 @@ export function useGame(canvasRef, config, scrollContainerRef) {
 
         // Check if cleanup happened during async initialization
         if (aborted || !game || !game.renderer) {
-          console.log("Game initialization aborted");
           return;
         }
 
@@ -89,7 +88,6 @@ export function useGame(canvasRef, config, scrollContainerRef) {
 
         // Check if cleanup happened during async loading
         if (aborted || !game || !game.renderer) {
-          console.log("Game initialization aborted after texture loading");
           return;
         }
 
@@ -286,17 +284,12 @@ export function useGame(canvasRef, config, scrollContainerRef) {
 
     // Check if chicken can jump forward
     if (currentLane >= totalLanes - 1) {
-      console.log("Chicken has reached the end!");
       return false; // Already at finish
     }
 
     // Move to next lane
     const nextLane = currentLane + 1;
     const targetX = lanePositionsRef.current[nextLane];
-
-    console.log(
-      `Jumping from lane ${currentLane} to lane ${nextLane}, position ${targetX}`,
-    );
 
     // Start moving world when jumping FROM lane 2 TO lane 3 (nextLane >= 3)
     const shouldMoveWorld = nextLane >= 3;
@@ -310,9 +303,6 @@ export function useGame(canvasRef, config, scrollContainerRef) {
       // If this is the first time entering world-move mode, set chicken to fixed position
       if (!wasMovingWorld) {
         chicken.container.position.x = fixedChickenX;
-        console.log(
-          `🐔 Setting chicken to fixed viewport position: ${fixedChickenX}px`,
-        );
       }
 
       // Calculate world offset animation
@@ -336,10 +326,6 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         targetWorldOffset = Math.max(
           0,
           Math.min(targetWorldOffset, maxWorldOffset),
-        );
-
-        console.log(
-          `🌍 Animating world from ${currentWorldOffset}px to ${targetWorldOffset}px (max: ${maxWorldOffset}px) over ${chicken.jumpDuration}s`,
         );
 
         // Pass world animation data to chicken
@@ -393,10 +379,6 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         console.warn("Cannot update difficulty: game not fully initialized");
         return;
       }
-
-      console.log(
-        `🔄 useGame: Updating difficulty to ${newDifficulty} with ${newConfig.laneCount} lanes`,
-      );
 
       // Get start width from ref
       const startWidth = startWidthRef.current;
@@ -457,14 +439,6 @@ export function useGame(canvasRef, config, scrollContainerRef) {
         // Force reflow to recalculate scrollable area
         void container.offsetWidth;
       }
-
-      console.log(
-        `✅ Canvas resized to ${newTotalWidth}x${newTotalHeight} for ${newConfig.laneCount} lanes`,
-      );
-
-      console.log(
-        `✅ useGame: Difficulty updated. ${lanePositions.length} lane positions calculated`,
-      );
     },
     [scrollContainerRef],
   );
@@ -474,8 +448,6 @@ export function useGame(canvasRef, config, scrollContainerRef) {
     const game = gameRef.current;
     const chicken = chickenRef.current;
     if (!game || !chicken) return;
-
-    console.log("🔄 Resetting game to initial state");
 
     // Reset game entities (coins, gates, etc.)
     game.resetGame();
@@ -522,31 +494,164 @@ export function useGame(canvasRef, config, scrollContainerRef) {
           console.warn("Could not reset chicken animation:", e);
         }
       }
-
-      console.log("🐔 Chicken reset to starting position: " + startX);
     }
 
     // Reset world position to eliminate extra space
     const stage = game.renderer?.app?.stage;
     if (stage) {
       stage.x = 0;
-      console.log("🌍 World offset reset to 0");
     }
 
     // Reset scroll position
     if (scrollContainerRef?.current) {
       scrollContainerRef.current.scrollLeft = 0;
-      console.log("📜 Scroll position reset");
     }
   }, [scrollContainerRef]);
 
   // Register collision callback
-  const registerCollisionCallback = useCallback((callback) => {
-    const game = gameRef.current;
-    if (game && game.carSpawner) {
-      game.carSpawner.onCollision = callback;
-    }
-  }, []);
+  // REQUIREMENT: Complete death sequence with proper timing and state restoration
+  //
+  // FLOW:
+  //   1. Collision detected -> hasCollided flag set (prevents multiple triggers)
+  //   2. Car continues moving (not stopped) until naturally removed during cleanup
+  //   3. onCollisionFromApp() called -> App.jsx sets gameState to "lost" (locks input)
+  //   4. game.state set to "gameover" (allows animations, stops game systems)
+  //   5. Death animation plays
+  //   6. 1-second visual buffer
+  //   7. Reset sequence: wipe cars -> reset chicken -> reset scene -> reset objects
+  //   8. game.state set to "playing" (re-enable game systems)
+  //   9. onResetComplete() called -> App.jsx sets gameState to "playing" (unlock input)
+  //
+  const registerCollisionCallback = useCallback(
+    (onCollisionFromApp, onResetComplete) => {
+      const game = gameRef.current;
+      const chicken = chickenRef.current;
+
+      if (!game || !game.carSpawner || !chicken) {
+        return;
+      }
+
+      // Set up collision callback (decoupled from detection logic)
+      game.carSpawner.onCollision = async () => {
+        // REQUIREMENT: Immediately halt all user input by notifying App
+        // This sets gameState to "lost" which blocks handlePlay
+        if (onCollisionFromApp) {
+          onCollisionFromApp();
+        }
+
+        // REQUIREMENT: Execute death sequence with timing (animation + 1s delay)
+        await game.handleChickenDeath(async () => {
+          // REQUIREMENT: Complete Reset Sequence (executed after death animation + 1s delay)
+          // Proper Order: 1. Stop collision checks & wipe cars
+          //              2. Reset chicken position & state
+          //              3. Reset camera/scene view
+          //              4. Reset game objects (coins, gates)
+          //              5. Re-enable input & restore game state
+
+          // STEP 1: WIPE ALL CARS FIRST (including the one that caused collision)
+          // This ensures the stage is completely clean before visual reset
+          console.log("🧹 Starting stage wipe...");
+          if (game.carSpawner) {
+            try {
+              game.carSpawner.reset();
+            } catch (error) {
+              console.error("❌ Error resetting car spawner:", error);
+            }
+          }
+
+          // STEP 2: RESET CHICKEN TO STARTING POSITION
+          if (lanePositionsRef.current.length > 0) {
+            const startX = lanePositionsRef.current[0];
+            chicken.x = startX;
+            chicken.container.position.x = startX;
+
+            // Reset Y position to ground level
+            chicken.container.position.y = chicken.jumpStartY;
+            chicken.y = chicken.jumpStartY;
+
+            currentLaneRef.current = 0;
+
+            // Reset chicken jump state
+            chicken.isJumping = false;
+            chicken.jumpProgress = 0;
+            chicken.hasStartedJumpAnimation = false;
+
+            // Reset world movement state
+            chicken.shouldMoveWorld = false;
+            chicken.stage = null;
+            chicken.startWorldOffset = 0;
+            chicken.endWorldOffset = 0;
+            chicken.maxWorldOffset = 0;
+            chicken.fixedViewportX = null;
+
+            // REQUIREMENT: Set chicken to ready/idle state
+            if (chicken.spine && chicken.spine.state) {
+              try {
+                const idleAnimations = ["idle", "idle_front", "stand"];
+                for (const anim of idleAnimations) {
+                  try {
+                    chicken.spine.state.setAnimation(0, anim, true);
+                    chicken.currentAnimation = anim;
+                    break;
+                  } catch {
+                    // Try next animation
+                  }
+                }
+              } catch (e) {
+                console.warn("Could not reset chicken animation:", e);
+              }
+            }
+          }
+
+          // STEP 3: RESET CAMERA/SCENE VIEW TO STARTING STATE
+          const stage = game.renderer?.app?.stage;
+          if (stage) {
+            stage.x = 0;
+          }
+
+          // Reset scroll position
+          if (scrollContainerRef?.current) {
+            scrollContainerRef.current.scrollLeft = 0;
+          }
+
+          // STEP 4: RESET GAME OBJECTS
+          // 4a. Reset coins (Golds to 0, NOT permanent balance)
+          if (game.coinManager) {
+            try {
+              game.coinManager.reset();
+            } catch (error) {
+              console.error("Error resetting coins:", error);
+            }
+          }
+
+          // 4b. Reset gates
+          if (game.gateManager) {
+            try {
+              game.gateManager.destroy();
+            } catch (error) {
+              console.error("Error resetting gates:", error);
+            }
+          }
+
+          // STEP 5: RE-ENABLE INPUT & RESTORE GAME STATE
+          // First, set internal game state to "playing"
+          game.state = "playing";
+
+          console.log("✅ Reset complete - Restoring game state to 'playing'");
+
+          // Then, notify App.jsx to restore React gameState to "playing"
+          // This unblocks user input in handlePlay()
+          if (onResetComplete) {
+            console.log("📢 Calling onResetComplete to restore UI state...");
+            onResetComplete();
+          } else {
+            console.warn("⚠️ onResetComplete callback is undefined!");
+          }
+        });
+      };
+    },
+    [scrollContainerRef],
+  );
 
   return {
     gameRef,

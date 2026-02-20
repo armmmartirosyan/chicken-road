@@ -6,6 +6,9 @@ import { Sprite } from "pixi.js";
  * Handles car rendering, movement, and lifecycle with hardware acceleration
  */
 export class Car extends BaseEntity {
+  // Gate stopping configuration
+  static STOP_OFFSET = 250; // Distance (in px) to stop above the gate
+
   constructor(x, y, config) {
     super(x, y);
 
@@ -96,16 +99,28 @@ export class Car extends BaseEntity {
       return;
     }
 
-    // Check if car should stop at gate BEFORE moving
-    if (this.gate && this.lane === this.gate.laneIndex) {
-      const gateStopY = this.gate.getStopY();
-      const nextY = this.y + this.speed * deltaTime;
+    // REQUIREMENT: Check if car should stop at gate BEFORE moving
+    // Gate interaction with "point of no return" logic
+    if (this.gate && this.gate.active && this.lane === this.gate.laneIndex) {
+      const gateY = this.gate.y;
+      const stopY = gateY - Car.STOP_OFFSET; // Stop 250px above gate
 
-      // If next position would pass gate, stop at gate instead
-      if (nextY >= gateStopY) {
-        this.y = gateStopY;
-        this.isStopped = true;
-        return; // Don't move further
+      // Get car's front position (bottom edge, since car moves downward)
+      const carFrontY = this.y + this.height / 2;
+
+      // REQUIREMENT: "Point of No Return" - If car's front has already passed the gate,
+      // do not stop, continue at full speed
+      if (carFrontY < gateY) {
+        // Car hasn't reached the gate yet, check if it should stop
+        const nextY = this.y + this.speed * deltaTime;
+        const nextFrontY = nextY + this.height / 2;
+
+        // If next position would reach or pass the stop point, stop there
+        if (nextFrontY >= stopY + this.height / 2) {
+          this.y = stopY;
+          this.isStopped = true;
+          return; // Don't move further
+        }
       }
     }
 
@@ -120,6 +135,7 @@ export class Car extends BaseEntity {
     this.inUse = false;
     this.active = false;
     this.visible = false;
+    this.isStopped = false; // Reset stopped state
     if (this.container) {
       this.container.visible = false;
     }

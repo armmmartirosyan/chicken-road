@@ -33,8 +33,6 @@ export class GateManager {
       console.error("Gate texture not found");
       return;
     }
-
-    console.log("🚧 GateManager initialized");
   }
 
   /**
@@ -67,8 +65,6 @@ export class GateManager {
 
     this.gates.set(laneIndex, gate);
 
-    console.log(`🚧 Created gate on lane ${laneIndex} at X: ${gateX}`);
-
     return gate;
   }
 
@@ -97,8 +93,6 @@ export class GateManager {
    * Called when chicken moves to a new lane
    */
   onLaneChanged(newLaneIndex) {
-    console.log(`🚧 Chicken moved to lane ${newLaneIndex}, placing gates`);
-
     // Create gates on current lane and all previous lanes (0 to newLaneIndex)
     for (let i = 0; i <= newLaneIndex; i++) {
       if (!this.gates.has(i)) {
@@ -125,9 +119,6 @@ export class GateManager {
       } else {
         // Chicken is not on the road (might be on start scenery)
         if (this.currentLaneIndex !== -1) {
-          console.log(
-            `🚧 Chicken left road, was on lane ${this.currentLaneIndex}`,
-          );
           this.currentLaneIndex = chickenLaneIndex;
         }
       }

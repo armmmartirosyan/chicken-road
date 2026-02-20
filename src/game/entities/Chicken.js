@@ -91,7 +91,6 @@ export class Chicken extends BaseEntity {
           this.spine.state.setAnimation(0, animName, true);
           this.currentAnimation = animName;
           foundAnimation = true;
-          console.log(`✅ Playing Spine animation: ${animName}`);
           break;
         } catch {
           // Animation doesn't exist, try next
@@ -106,7 +105,6 @@ export class Chicken extends BaseEntity {
         if (animations && animations.length > 0) {
           this.spine.state.setAnimation(0, animations[0].name, true);
           this.currentAnimation = animations[0].name;
-          console.log(`✅ Playing first animation: ${animations[0].name}`);
         }
       }
 
@@ -183,9 +181,6 @@ export class Chicken extends BaseEntity {
       this.endWorldOffset = worldAnimationData.endOffset;
       this.maxWorldOffset = worldAnimationData.maxWorldOffset || Infinity;
       this.fixedViewportX = worldAnimationData.fixedViewportX;
-      console.log(
-        `🌍 Preparing world animation from ${this.startWorldOffset} to ${this.endWorldOffset} (max: ${this.maxWorldOffset})`,
-      );
     } else {
       this.stage = null;
       this.startWorldOffset = 0;
@@ -193,11 +188,6 @@ export class Chicken extends BaseEntity {
       this.maxWorldOffset = 0;
       this.fixedViewportX = null;
     }
-
-    // Animation will start in update() right before position changes
-    console.log(
-      "🐔 Jump initiated, animation will start before position changes",
-    );
   }
 
   /**
@@ -218,7 +208,6 @@ export class Chicken extends BaseEntity {
             this.spine.state.setAnimation(0, "jump", false);
             this.spine.state.timeScale = 2;
             this.currentAnimation = "jump";
-            console.log("✅ Playing jump animation before position changes");
           } catch {
             console.warn("Jump animation not found, falling back to walk");
             const fallbackAnimations = ["walk", "idle_front", "idle"];
@@ -260,9 +249,6 @@ export class Chicken extends BaseEntity {
             Math.min(this.endWorldOffset, this.maxWorldOffset),
           );
           this.stage.x = -clampedOffset;
-          console.log(
-            `🌍 World animation complete at offset: ${-clampedOffset}`,
-          );
         }
 
         // Reset Y position to ground level
@@ -331,6 +317,37 @@ export class Chicken extends BaseEntity {
    */
   easeInOutQuad(t) {
     return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+  }
+
+  /**
+   * Play death animation
+   */
+  playDeath(onComplete) {
+    if (!this.spine || !this.spine.state) {
+      console.warn("Cannot play death animation: spine not initialized");
+      if (onComplete) onComplete();
+      return;
+    }
+
+    try {
+      // Try to play death animation
+      this.spine.state.setAnimation(0, "death", false); // false = play once
+      this.currentAnimation = "death";
+
+      // Listen for animation complete
+      if (onComplete) {
+        this.spine.state.addListener({
+          complete: (entry) => {
+            if (entry.animation.name === "death") {
+              onComplete();
+            }
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Failed to play death animation:", error);
+      if (onComplete) onComplete();
+    }
   }
 
   /**

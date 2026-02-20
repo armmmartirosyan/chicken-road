@@ -104,8 +104,6 @@ export function getDefaultConfig(difficulty = "Easy") {
     DIFFICULTY_SETTINGS[difficulty] || DIFFICULTY_SETTINGS.Easy;
   const laneCount = difficultySettings.coinMultipliers.length;
 
-  console.log(`🎮 Game config for ${difficulty}: ${laneCount} lanes`);
-
   return {
     ...GAME_CONFIG,
     laneCount, // Override with dynamic lane count
