@@ -132,13 +132,16 @@ export class Game {
 
     // Only update game systems when playing (car spawning, collision, coins, gates)
     // During "idle": no cars spawn, no collision checks
-    // During "gameover": only entities update (for death animation)
-    if (this.state === "playing") {
-      // Update car spawner
+    // During "gameover": cars continue moving (no spawn/collision), coins/gates pause
+    if (this.state === "playing" || this.state === "gameover") {
+      // Update car spawner (cars maintain momentum during death animation)
       if (this.carSpawner) {
         this.carSpawner.update(deltaTime);
       }
+    }
 
+    // Coin and gate systems only update when playing
+    if (this.state === "playing") {
       // Update coin manager
       if (this.coinManager) {
         this.coinManager.update(deltaTime);

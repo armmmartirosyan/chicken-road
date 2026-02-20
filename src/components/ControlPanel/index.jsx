@@ -40,7 +40,7 @@ export function ControlPanel({
           <div className="slider-container">
             <button
               className="slider-label"
-              onClick={() => !disabled && handleSliderChange(0.01)}
+              onClick={() => !disabled && handleSliderChange(1)}
               disabled={disabled}
             >
               MIN

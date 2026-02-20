@@ -301,7 +301,7 @@ export class CoinManager {
   }
 
   /**
-   * Reset all coins to silver
+   * Reset all coins to silver and restore default opacity
    */
   reset() {
     this.currentLaneIndex = -1;
@@ -317,7 +317,18 @@ export class CoinManager {
         coin.text.visible = true;
       }
       coin.setVisible(true);
+
+      // Reset opacity to default (will be updated by updateCoinVisibility)
+      if (coin.sprite) {
+        coin.sprite.alpha = 1.0;
+      }
+      if (coin.text) {
+        coin.text.alpha = 1.0;
+      }
     }
+
+    // Update visibility and opacity based on reset state
+    this.updateCoinVisibility();
   }
 
   /**
