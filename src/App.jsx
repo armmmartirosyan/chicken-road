@@ -2,6 +2,14 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import "./App.css";
 import { Header, GameArea, ControlPanel } from "./components";
 
+/**
+ * Helper function to round currency to 2 decimal places
+ * Prevents floating-point precision issues
+ */
+const roundCurrency = (amount) => {
+  return Math.round(amount * 100) / 100;
+};
+
 export default function App() {
   const [balance, setBalance] = useState(1000000);
   const [betAmount, setBetAmount] = useState(1);
@@ -48,7 +56,7 @@ export default function App() {
         resetGameFn();
       }
 
-      setBalance((prev) => prev - betAmount);
+      setBalance((prev) => roundCurrency(prev - betAmount));
       setGameState("playing");
       setScore(0);
 
@@ -70,24 +78,45 @@ export default function App() {
     } else if (gameState === "playing") {
       // Jump chicken (only when playing)
       if (jumpChickenFn) {
-        const success = jumpChickenFn();
-        if (success) {
-          setScore((prev) => prev + 1);
-        } else {
-          // Chicken reached the end - turn current lane's coin to gold and calculate winnings
-          if (finishCurrentLaneFn) {
-            finishCurrentLaneFn();
-          }
+        // Define win sequence callback to trigger automatically on finish line landing
+        const triggerWinSequence = () => {
+          // AUTOMATIC WIN SEQUENCE - triggered when chicken lands on finish line
+          // Step 1: Final coin already turned gold (before jump started)
 
+          // Step 2: Calculate winnings with proper rounding
           if (getCurrentMultiplierFn) {
             const multiplier = getCurrentMultiplierFn();
-            const winnings = betAmount * multiplier;
-            const totalPayout = betAmount + winnings; // Return original bet + winnings
+            const winnings = roundCurrency(betAmount * multiplier);
+            const totalPayout = roundCurrency(betAmount + winnings); // Original bet + winnings
 
-            setBalance((prev) => prev + totalPayout);
+            // Step 3: Update balance and lock controls immediately
+            setBalance((prev) => roundCurrency(prev + totalPayout));
             setGameState("won");
+
+            // Step 4: Pause game systems (stop car spawning)
+            const game = window.__GAME_INSTANCE__;
+            if (game) {
+              game.state = "idle"; // Stop car spawning during win sequence
+            }
+
+            // Step 5: Wait 3 seconds, then auto-reset to start position
+            setTimeout(() => {
+              if (resetGameFn) {
+                resetGameFn();
+              }
+              // Return to idle state to show PLAY button
+              setGameState("idle");
+              setScore(0);
+            }, 3000); // 3-second victory display
           }
+        };
+
+        // Jump with finish callback
+        const success = jumpChickenFn(triggerWinSequence);
+        if (success) {
+          setScore((prev) => prev + 1);
         }
+        // Note: Win sequence now triggers automatically via callback, no manual trigger needed
       }
     }
   }, [
@@ -142,17 +171,25 @@ export default function App() {
     // Get current multiplier from game
     const multiplier = getCurrentMultiplierFn ? getCurrentMultiplierFn() : 1.0;
 
-    // Calculate final price: bet amount * multiplier + original bet
-    const winnings = betAmount * multiplier;
-    const totalPayout = betAmount + winnings; // Return original bet + winnings
+    // Calculate final price with proper rounding: bet amount * multiplier + original bet
+    const winnings = roundCurrency(betAmount * multiplier);
+    const totalPayout = roundCurrency(winnings); // Return original bet + winnings
 
-    setBalance((prev) => prev + totalPayout);
+    setBalance((prev) => roundCurrency(prev + totalPayout));
     setGameState("won");
 
-    // Reset game after cashout
+    // Pause game systems (stop car spawning)
+    const game = window.__GAME_INSTANCE__;
+    if (game) {
+      game.state = "idle"; // Stop car spawning during cashout
+    }
+
+    // Reset game immediately after cashout (no 3-second delay for manual cashout)
     if (resetGameFn) {
       setTimeout(() => {
         resetGameFn();
+        // Return to idle state to show PLAY button
+        setGameState("idle");
       }, 100);
     }
   }, [

@@ -287,84 +287,102 @@ export function useGame(canvasRef, config, scrollContainerRef) {
   }, []); // Initialize once - handle difficulty changes separately
 
   // Jump function to move chicken to next lane (memoized to prevent re-renders)
-  const jumpChicken = useCallback(() => {
-    const chicken = chickenRef.current;
-    const game = gameRef.current;
-    if (!chicken || chicken.isJumping || !game) return false; // Can't jump if already jumping
+  const jumpChicken = useCallback(
+    (onFinishCallback = null) => {
+      const chicken = chickenRef.current;
+      const game = gameRef.current;
+      if (!chicken || chicken.isJumping || !game) return false; // Can't jump if already jumping
 
-    const currentLane = currentLaneRef.current;
-    const totalLanes = totalLanesRef.current;
+      const currentLane = currentLaneRef.current;
+      const totalLanes = totalLanesRef.current;
 
-    // Check if chicken can jump forward
-    if (currentLane >= totalLanes - 1) {
-      return false; // Already at finish
-    }
-
-    // Move to next lane
-    const nextLane = currentLane + 1;
-    const targetX = lanePositionsRef.current[nextLane];
-
-    // Start moving world when jumping FROM lane 2 TO lane 3 (nextLane >= 3)
-    const shouldMoveWorld = nextLane >= 3;
-    const wasMovingWorld = currentLane >= 3;
-
-    if (shouldMoveWorld && scrollContainerRef?.current) {
-      const container = scrollContainerRef.current;
-      const containerWidth = container.clientWidth;
-      const fixedChickenX = containerWidth * 0.4;
-
-      // If this is the first time entering world-move mode, set chicken to fixed position
-      if (!wasMovingWorld) {
-        chicken.container.position.x = fixedChickenX;
+      // Check if chicken can jump forward
+      if (currentLane >= totalLanes - 1) {
+        return false; // Already at finish
       }
 
-      // Calculate world offset animation
-      const stage = game.renderer?.app?.stage;
-      if (stage) {
+      // Move to next lane
+      const nextLane = currentLane + 1;
+      const isJumpingToFinish = nextLane >= totalLanes - 1; // Detect if jumping TO finish line
+
+      // If jumping to finish, turn current coin gold IMMEDIATELY (before jump starts)
+      if (isJumpingToFinish && game.coinManager) {
+        game.coinManager.finishCurrentLane();
+      }
+      const targetX = lanePositionsRef.current[nextLane];
+
+      // Start moving world when jumping FROM lane 2 TO lane 3 (nextLane >= 3)
+      const shouldMoveWorld = nextLane >= 3;
+      const wasMovingWorld = currentLane >= 3;
+
+      if (shouldMoveWorld && scrollContainerRef?.current) {
+        const container = scrollContainerRef.current;
         const containerWidth = container.clientWidth;
-        const canvasWidth = canvasWidthRef.current;
+        const fixedChickenX = containerWidth * 0.4;
 
-        // Calculate maximum allowed world offset to prevent black space
-        const maxWorldOffset = Math.max(0, canvasWidth - containerWidth);
+        // If this is the first time entering world-move mode, set chicken to fixed position
+        if (!wasMovingWorld) {
+          chicken.container.position.x = fixedChickenX;
+        }
 
-        // Current world offset (where we are now)
-        // On first transition to world-move mode, calculate based on chicken's actual position
-        // On subsequent moves, use the stage's current offset
-        const currentWorldOffset = wasMovingWorld
-          ? -stage.x
-          : chicken.x - fixedChickenX;
+        // Calculate world offset animation
+        const stage = game.renderer?.app?.stage;
+        if (stage) {
+          const containerWidth = container.clientWidth;
+          const canvasWidth = canvasWidthRef.current;
 
-        // Target world offset (where we want to be) - clamped to valid range
-        let targetWorldOffset = targetX - fixedChickenX;
-        targetWorldOffset = Math.max(
-          0,
-          Math.min(targetWorldOffset, maxWorldOffset),
-        );
+          // Calculate maximum allowed world offset to prevent black space
+          const maxWorldOffset = Math.max(0, canvasWidth - containerWidth);
 
-        // Pass world animation data to chicken
-        const worldAnimationData = {
-          stage: stage,
-          startOffset: currentWorldOffset,
-          endOffset: targetWorldOffset,
-          maxWorldOffset: maxWorldOffset,
-          fixedViewportX: fixedChickenX,
-        };
+          // Current world offset (where we are now)
+          // On first transition to world-move mode, calculate based on chicken's actual position
+          // On subsequent moves, use the stage's current offset
+          const currentWorldOffset = wasMovingWorld
+            ? -stage.x
+            : chicken.x - fixedChickenX;
 
-        // Chicken jumps with world movement animation
-        chicken.jumpTo(targetX, shouldMoveWorld, worldAnimationData);
+          // Target world offset (where we want to be) - clamped to valid range
+          let targetWorldOffset = targetX - fixedChickenX;
+          targetWorldOffset = Math.max(
+            0,
+            Math.min(targetWorldOffset, maxWorldOffset),
+          );
+
+          // Pass world animation data to chicken
+          const worldAnimationData = {
+            stage: stage,
+            startOffset: currentWorldOffset,
+            endOffset: targetWorldOffset,
+            maxWorldOffset: maxWorldOffset,
+            fixedViewportX: fixedChickenX,
+          };
+
+          // Chicken jumps with world movement animation
+          // If jumping to finish, pass callback to trigger win sequence on landing
+          const landingCallback = isJumpingToFinish ? onFinishCallback : null;
+          chicken.jumpTo(
+            targetX,
+            shouldMoveWorld,
+            worldAnimationData,
+            landingCallback,
+          );
+        } else {
+          // Fallback if stage not available
+          const landingCallback = isJumpingToFinish ? onFinishCallback : null;
+          chicken.jumpTo(targetX, shouldMoveWorld, null, landingCallback);
+        }
       } else {
-        // Fallback if stage not available
-        chicken.jumpTo(targetX, shouldMoveWorld);
+        // First three lanes (0, 1, 2): chicken moves normally without world movement
+        const landingCallback = isJumpingToFinish ? onFinishCallback : null;
+        chicken.jumpTo(targetX, shouldMoveWorld, null, landingCallback);
       }
-    } else {
-      // First three lanes (0, 1, 2): chicken moves normally without world movement
-      chicken.jumpTo(targetX, shouldMoveWorld);
-    }
 
-    currentLaneRef.current = nextLane;
+      currentLaneRef.current = nextLane;
 
-    return true;
-  }, [scrollContainerRef]);
+      return true;
+    },
+    [scrollContainerRef],
+  );
 
   // Get current coin multiplier
   const getCurrentMultiplier = useCallback(() => {

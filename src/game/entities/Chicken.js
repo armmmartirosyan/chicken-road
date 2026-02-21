@@ -36,6 +36,9 @@ export class Chicken extends BaseEntity {
     this.maxWorldOffset = 0; // Maximum allowed offset to prevent showing black space
     this.stage = null; // Reference to Pixi stage for world movement
     this.fixedViewportX = null; // Fixed X position in viewport during world movement
+
+    // Jump completion callback
+    this.onJumpComplete = null; // Callback to trigger when landing completes
   }
 
   /**
@@ -162,8 +165,14 @@ export class Chicken extends BaseEntity {
    * @param {number} targetX - Target world X position
    * @param {boolean} shouldMoveWorld - If true, world moves instead of chicken after lane 2
    * @param {Object} worldAnimationData - Data for world movement animation {stage, startOffset, endOffset, fixedViewportX}
+   * @param {Function} onComplete - Optional callback to trigger when landing completes
    */
-  jumpTo(targetX, shouldMoveWorld = false, worldAnimationData = null) {
+  jumpTo(
+    targetX,
+    shouldMoveWorld = false,
+    worldAnimationData = null,
+    onComplete = null,
+  ) {
     if (this.isJumping) return; // Already jumping
 
     this.isJumping = true;
@@ -173,6 +182,7 @@ export class Chicken extends BaseEntity {
     this.jumpProgress = 0;
     this.shouldMoveWorld = shouldMoveWorld;
     this.hasStartedJumpAnimation = false; // Reset animation flag
+    this.onJumpComplete = onComplete; // Store callback
 
     // Set up world movement animation if needed
     if (shouldMoveWorld && worldAnimationData) {
@@ -258,6 +268,13 @@ export class Chicken extends BaseEntity {
         // Ensure container visibility
         this.container.visible = true;
         this.container.alpha = 1.0;
+
+        // Trigger completion callback if provided
+        if (this.onJumpComplete) {
+          const callback = this.onJumpComplete;
+          this.onJumpComplete = null; // Clear callback
+          callback(); // Execute callback
+        }
       } else {
         // Interpolate position with easing
         const easeProgress = this.easeInOutQuad(this.jumpProgress);

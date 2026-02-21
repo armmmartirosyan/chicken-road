@@ -3,7 +3,10 @@ import { DollarIcon } from "../DollarIcon";
 
 export function Header({ balance = 1000000 }) {
   const formatBalance = (num) => {
-    return String(num).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    // Round to 2 decimal places for display
+    const rounded = Math.round(num * 100) / 100;
+    // Format with spaces for thousands and 2 decimal places
+    return rounded.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   };
 
   return (

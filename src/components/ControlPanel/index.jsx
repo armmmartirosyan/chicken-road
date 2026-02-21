@@ -101,7 +101,7 @@ export function ControlPanel({
         <button
           className={`play-button ${isPlaying ? "go-button" : ""}`}
           onClick={onPlay}
-          disabled={false}
+          disabled={gameState === "won" || gameState === "lost"}
         >
           {buttonText}
         </button>

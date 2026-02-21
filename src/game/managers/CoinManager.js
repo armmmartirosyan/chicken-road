@@ -284,18 +284,29 @@ export class CoinManager {
 
   /**
    * Turn current lane's coin to gold (called when game ends or cashout)
+   * CRITICAL: When chicken reaches finish line, currentLaneIndex becomes -1
+   * In this case, we need to turn the last coin (highestPassedLane + 1) to gold
    */
   finishCurrentLane() {
-    if (
-      this.currentLaneIndex >= 0 &&
-      this.currentLaneIndex < this.coins.length
-    ) {
-      // Turn current lane's coin to gold
-      this.coins[this.currentLaneIndex].turnGold();
+    let targetLaneIndex = this.currentLaneIndex;
 
-      // Update highest passed lane to include current lane
-      if (this.currentLaneIndex > this.highestPassedLane) {
-        this.highestPassedLane = this.currentLaneIndex;
+    // If chicken is off the road (at finish line), use the next coin after highest passed
+    if (targetLaneIndex === -1 && this.highestPassedLane >= 0) {
+      targetLaneIndex = this.highestPassedLane + 1;
+    }
+
+    // If we still don't have a valid lane but have coins, use the last coin
+    if (targetLaneIndex === -1 && this.coins.length > 0) {
+      targetLaneIndex = this.coins.length - 1;
+    }
+
+    if (targetLaneIndex >= 0 && targetLaneIndex < this.coins.length) {
+      // Turn target coin to gold
+      this.coins[targetLaneIndex].turnGold();
+
+      // Update highest passed lane to include this coin
+      if (targetLaneIndex > this.highestPassedLane) {
+        this.highestPassedLane = targetLaneIndex;
       }
     }
   }
